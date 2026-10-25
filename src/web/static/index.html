@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KDP Coloring Book Studio | Amazon KDP PDF Generator</title>
+  <meta name="description" content="Автоматизированный генератор книг-раскрасок для Amazon KDP с поддержкой A4 и 8.5x8.5, 300 DPI">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-background">
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+    <div class="glow-orb orb-3"></div>
+  </div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            <path d="M8 7h8"/>
+            <path d="M8 11h6"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="logo-title">KDP Coloring Studio</h1>
+          <p class="logo-subtitle">Amazon KDP Automated Interior PDF Builder • 300 DPI</p>
+        </div>
+      </div>
+      <div class="header-badges">
+        <span class="badge badge-accent">
+          <span class="badge-dot"></span> 300 DPI Print-Ready
+        </span>
+        <span class="badge badge-subtle">
+          Двойная рамка 1.5pt • Корешок 20мм / Поля 15мм
+        </span>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="main-grid">
+      <!-- Left Column: Controls & Configuration -->
+      <section class="control-panel glass-card">
+        <h2 class="section-title">Параметры книги</h2>
+
+        <!-- Folder Selection -->
+        <div class="form-group">
+          <label for="inputFolder" class="form-label">
+            <span>Папка с изображениями</span>
+            <span class="tooltip" title="Укажите относительный или абсолютный путь к папке с раскрасками">?</span>
+          </label>
+          <div class="input-with-button">
+            <input 
+              type="text" 
+              id="inputFolder" 
+              class="form-input" 
+              value="reference\FarmAdventures" 
+              placeholder="reference\FarmAdventures"
+            >
+            <button id="btnScan" class="btn btn-secondary">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <span>Анализ</span>
+            </button>
+          </div>
+          <p class="input-hint">Поддерживаются PNG, JPG, JPEG, WEBP с естественной сортировкой (1, 2, 3.. 10, 11)</p>
+        </div>
+
+        <!-- Format Selection -->
+        <div class="form-group">
+          <label class="form-label">Целевой формат Amazon KDP</label>
+          <div class="format-cards" id="formatCards">
+            <!-- A4 Option -->
+            <label class="format-card active" data-format="a4">
+              <input type="radio" name="bookFormat" value="a4" checked>
+              <div class="format-card-content">
+                <div class="format-icon">
+                  <div class="ratio-box ratio-a4"></div>
+                </div>
+                <div class="format-info">
+                  <div class="format-name">A4 Portrait</div>
+                  <div class="format-dims">210 × 297 мм</div>
+                  <div class="format-pixels">2480 × 3508 px @ 300 DPI</div>
+                </div>
+              </div>
+            </label>
+
+            <!-- 8.5 x 8.5 Square Option -->
+            <label class="format-card" data-format="8.5x8.5">
+              <input type="radio" name="bookFormat" value="8.5x8.5">
+              <div class="format-card-content">
+                <div class="format-icon">
+                  <div class="ratio-box ratio-square"></div>
+                </div>
+                <div class="format-info">
+                  <div class="format-name">8.5 × 8.5" Square</div>
+                  <div class="format-dims">215.9 × 215.9 мм</div>
+                  <div class="format-pixels">2550 × 2550 px @ 300 DPI</div>
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Intro Pages Config -->
+        <div class="form-group">
+          <label for="introCount" class="form-label">
+            <span>Вводные страницы без пустых листов</span>
+            <span class="value-bubble" id="introCountVal">3 страницы</span>
+          </label>
+          <input 
+            type="range" 
+            id="introCount" 
+            class="range-slider" 
+            min="1" 
+            max="6" 
+            value="3" 
+            step="1"
+          >
+          <div class="slider-labels">
+            <span>1 (Титул)</span>
+            <span>3 (Титул + Инфо + Вводная)</span>
+            <span>6</span>
+          </div>
+        </div>
+
+        <!-- Background Whitening Tool Card -->
+        <div class="tool-card">
+          <div class="tool-card-header">
+            <div class="tool-card-title">
+              <span class="tool-icon">✨</span>
+              <span>Очистка фона ChatGPT</span>
+            </div>
+            <span class="value-bubble" id="brightnessVal">+40 ед.</span>
+          </div>
+          <p class="tool-card-desc">
+            Эмуляция Photoshop: делает серый фон рисунков идеально белым (#FFFFFF), сохраняя контуры насыщенно чёрными.
+          </p>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="brightnessSlider" class="form-label" style="font-size: 11px;">
+              <span>Сила отбеливания (сдвиг белой точки)</span>
+            </label>
+            <input 
+              type="range" 
+              id="brightnessSlider" 
+              class="range-slider" 
+              min="10" 
+              max="80" 
+              value="40" 
+              step="5"
+            >
+            <div class="slider-labels">
+              <span>10 (Мягко)</span>
+              <span>40 (Оптимально)</span>
+              <span>80 (Сильно)</span>
+            </div>
+          </div>
+          <button id="btnCleanBackground" class="btn btn-secondary" style="width: 100%;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            </svg>
+            <span id="btnCleanText">Очистить фон картинок</span>
+          </button>
+          <div id="cleanStatus" class="clean-status hidden"></div>
+        </div>
+
+
+        <!-- Book Stats / Summary Box -->
+        <div class="stats-box" id="statsBox">
+          <div class="stat-item">
+            <span class="stat-label">Найдено иллюстраций</span>
+            <span class="stat-value" id="statImagesCount">—</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Всего страниц в PDF</span>
+            <span class="stat-value highlight" id="statPagesCount">—</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Раскрасок на правой стороне</span>
+            <span class="stat-value" id="statRightSideCount">—</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Защитных пустых страниц</span>
+            <span class="stat-value" id="statBlankCount">—</span>
+          </div>
+        </div>
+
+        <!-- Action Button -->
+        <button id="btnBuild" class="btn btn-primary btn-large">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="12" y1="18" x2="12" y2="12"></line>
+            <line x1="9" y1="15" x2="15" y2="15"></line>
+          </svg>
+          <span id="btnBuildText">Собрать PDF для Amazon KDP</span>
+        </button>
+
+        <!-- Result Box -->
+        <div class="result-box hidden" id="resultBox">
+          <div class="result-header">
+            <div class="result-icon success">✓</div>
+            <div>
+              <div class="result-title">PDF успешно сгенерирован!</div>
+              <div class="result-filename" id="resultFileName">book.pdf</div>
+            </div>
+          </div>
+          <div class="result-meta">
+            <span id="resultPages">62 стр.</span> • 
+            <span id="resultSize">0 MB</span> • 
+            <span class="badge badge-success">Готово к KDP</span>
+          </div>
+          <div class="result-actions">
+            <button id="btnOpenFolder" class="btn btn-secondary btn-sm">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+              </svg>
+              Открыть в проводнике
+            </button>
+            <a id="btnDownload" class="btn btn-primary btn-sm" download>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              Скачать PDF
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Interactive Page Spread Preview -->
+      <section class="preview-panel glass-card">
+        <div class="preview-header">
+          <div>
+            <h2 class="section-title">Предпросмотр страниц книги</h2>
+            <p class="section-subtitle">
+              Разворот: чётные страницы — слева (Verso), нечётные страницы — справа (Recto).
+            </p>
+          </div>
+          <div class="preview-legend">
+            <span class="legend-item"><span class="legend-dot dot-img"></span> Иллюстрация</span>
+            <span class="legend-item"><span class="legend-dot dot-blank"></span> Пустой лист защиты</span>
+          </div>
+        </div>
+
+        <!-- Grid of Page Thumbnails -->
+        <div class="pages-grid" id="pagesGrid">
+          <div class="empty-state">
+            <div class="empty-icon">📖</div>
+            <div class="empty-text">Нажмите «Анализ» для загрузки структуры книги</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
