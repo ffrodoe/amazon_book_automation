@@ -4,11 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>KDP Coloring Book Studio | Amazon KDP PDF Generator</title>
-  <meta name="description" content="Автоматизированный генератор книг-раскрасок для Amazon KDP с поддержкой A4 и 8.5x8.5, 300 DPI">
+  <meta name="description" content="Автоматизированный генератор книг-раскрасок и обложек для Amazon KDP с поддержкой A4 и 8.5x8.5, 300 DPI">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=2.2">
+  <script>
+    function switchTab(target) {
+      if (window.switchTabHandler) {
+        return window.switchTabHandler(target);
+      }
+      document.querySelectorAll('.tab-btn').forEach(function(b) {
+        var t = b.getAttribute('data-target') || b.id.replace('tabBtn', 'tab');
+        b.classList.toggle('active', t === target);
+      });
+      document.querySelectorAll('.tab-pane').forEach(function(p) {
+        p.classList.toggle('active', p.id === target);
+      });
+    }
+  </script>
 </head>
 <body>
   <div class="app-background">
@@ -31,7 +45,7 @@
         </div>
         <div>
           <h1 class="logo-title">KDP Coloring Studio</h1>
-          <p class="logo-subtitle">Amazon KDP Automated Interior PDF Builder • 300 DPI</p>
+          <p class="logo-subtitle">Amazon KDP Automated Publishing Suite • Interior & Cover Builder • 300 DPI</p>
         </div>
       </div>
       <div class="header-badges">
@@ -39,57 +53,53 @@
           <span class="badge-dot"></span> 300 DPI Print-Ready
         </span>
         <span class="badge badge-subtle">
-          Двойная рамка 1.5pt • Корешок 20мм / Поля 15мм
+          Bleed 3.175мм • Amazon KDP Safe Zones
         </span>
       </div>
     </header>
 
-    <!-- Main Content Grid -->
-    <main class="main-grid">
-      <!-- Left Column: Controls & Configuration -->
-      <section class="control-panel glass-card">
-        <h2 class="section-title">Параметры книги</h2>
-
+    <!-- Global Project Controls (Always Visible) -->
+    <section class="global-project-bar glass-card">
+      <div class="project-bar-grid">
         <!-- Folder Selection -->
-        <div class="form-group">
+        <div class="project-folder-group">
           <label for="inputFolder" class="form-label">
-            <span>Папка с изображениями</span>
-            <span class="tooltip" title="Укажите относительный или абсолютный путь к папке с раскрасками">?</span>
+            <span>Папка книги (исходники)</span>
+            <span class="tooltip" title="Папка с иллюстрациями книги и файлами cover_front / cover_back">?</span>
           </label>
-          <div class="input-with-button">
+          <div class="folder-input-row">
             <input 
               type="text" 
               id="inputFolder" 
               class="form-input" 
-              value="reference\FarmAdventures" 
-              placeholder="reference\FarmAdventures"
+              value="" 
+              placeholder="Выберите или вставьте путь к папке книги..."
             >
-            <button id="btnScan" class="btn btn-secondary">
+            <button id="btnBrowse" class="btn btn-secondary" title="Выбрать папку через проводник Windows">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
               </svg>
-              <span>Анализ</span>
+              <span>Обзор...</span>
+            </button>
+            <button id="btnScan" class="btn btn-secondary btn-icon-compact" title="Обновить проект (↻)">
+              <span>↻</span>
             </button>
           </div>
-          <p class="input-hint">Поддерживаются PNG, JPG, JPEG, WEBP с естественной сортировкой (1, 2, 3.. 10, 11)</p>
+          <p class="input-hint">Обложки: <code>cover_front.*</code>, <code>cover_back.*</code> • Страницы: <code>001.png</code>, <code>002.png</code>...</p>
         </div>
 
-        <!-- Format Selection -->
-        <div class="form-group">
-          <label class="form-label">Целевой формат Amazon KDP</label>
-          <div class="format-cards" id="formatCards">
+        <!-- Format Selection (Global) -->
+        <div class="project-format-group">
+          <label class="form-label">Формат издания (общий для блока и обложки)</label>
+          <div class="format-cards-compact" id="formatCards">
             <!-- A4 Option -->
             <label class="format-card active" data-format="a4">
               <input type="radio" name="bookFormat" value="a4" checked>
               <div class="format-card-content">
-                <div class="format-icon">
-                  <div class="ratio-box ratio-a4"></div>
-                </div>
+                <div class="ratio-box ratio-a4"></div>
                 <div class="format-info">
                   <div class="format-name">A4 Portrait</div>
-                  <div class="format-dims">210 × 297 мм</div>
-                  <div class="format-pixels">2480 × 3508 px @ 300 DPI</div>
+                  <div class="format-dims">210 × 297 мм (300 DPI)</div>
                 </div>
               </div>
             </label>
@@ -98,172 +108,720 @@
             <label class="format-card" data-format="8.5x8.5">
               <input type="radio" name="bookFormat" value="8.5x8.5">
               <div class="format-card-content">
-                <div class="format-icon">
-                  <div class="ratio-box ratio-square"></div>
-                </div>
+                <div class="ratio-box ratio-square"></div>
                 <div class="format-info">
                   <div class="format-name">8.5 × 8.5" Square</div>
-                  <div class="format-dims">215.9 × 215.9 мм</div>
-                  <div class="format-pixels">2550 × 2550 px @ 300 DPI</div>
+                  <div class="format-dims">215.9 × 215.9 мм (300 DPI)</div>
                 </div>
               </div>
             </label>
           </div>
         </div>
+      </div>
+    </section>
 
-        <!-- Intro Pages Config -->
-        <div class="form-group">
-          <label for="introCount" class="form-label">
-            <span>Вводные страницы без пустых листов</span>
-            <span class="value-bubble" id="introCountVal">3 страницы</span>
-          </label>
-          <input 
-            type="range" 
-            id="introCount" 
-            class="range-slider" 
-            min="1" 
-            max="6" 
-            value="3" 
-            step="1"
-          >
-          <div class="slider-labels">
-            <span>1 (Титул)</span>
-            <span>3 (Титул + Инфо + Вводная)</span>
-            <span>6</span>
-          </div>
-        </div>
+    <!-- Navigation Tabs -->
+    <nav class="tabs-nav" id="mainTabsNav">
+      <button class="tab-btn active" id="tabBtnInterior" data-target="tabInterior" onclick="switchTab('tabInterior')">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+        </svg>
+        <span>Внутренний блок (Interior)</span>
+      </button>
+      <button class="tab-btn" id="tabBtnCover" data-target="tabCover" onclick="switchTab('tabCover')">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <line x1="9" y1="3" x2="9" y2="21"/>
+        </svg>
+        <span>Обложка книги (Cover PDF)</span>
+      </button>
+      <button class="tab-btn" id="tabBtnAplus" data-target="tabAplus" onclick="switchTab('tabAplus')">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+          <line x1="8" y1="21" x2="16" y2="21"/>
+          <line x1="12" y1="17" x2="12" y2="21"/>
+        </svg>
+        <span>A+ Контент (Баннеры)</span>
+      </button>
+    </nav>
 
-        <!-- Background Whitening Tool Card -->
-        <div class="tool-card">
-          <div class="tool-card-header">
-            <div class="tool-card-title">
-              <span class="tool-icon">✨</span>
-              <span>Очистка фона ChatGPT</span>
-            </div>
-            <span class="value-bubble" id="brightnessVal">+40 ед.</span>
-          </div>
-          <p class="tool-card-desc">
-            Эмуляция Photoshop: делает серый фон рисунков идеально белым (#FFFFFF), сохраняя контуры насыщенно чёрными.
-          </p>
-          <div class="form-group" style="margin-bottom: 12px;">
-            <label for="brightnessSlider" class="form-label" style="font-size: 11px;">
-              <span>Сила отбеливания (сдвиг белой точки)</span>
+    <!-- ============================================== -->
+    <!-- TAB 1: INTERIOR                                -->
+    <!-- ============================================== -->
+    <section id="tabInterior" class="tab-pane active">
+      <div class="main-grid">
+        <!-- Left Column: Controls & Configuration -->
+        <div class="control-panel glass-card">
+          <h2 class="section-title">Параметры внутреннего блока</h2>
+
+          <!-- Intro Pages Config -->
+          <div class="form-group">
+            <label for="introCount" class="form-label">
+              <span>Вводные страницы без пустых листов</span>
+              <span class="value-bubble" id="introCountVal">3 страницы</span>
             </label>
             <input 
               type="range" 
-              id="brightnessSlider" 
+              id="introCount" 
               class="range-slider" 
-              min="10" 
-              max="80" 
-              value="40" 
-              step="5"
+              min="1" 
+              max="6" 
+              value="3" 
+              step="1"
             >
             <div class="slider-labels">
-              <span>10 (Мягко)</span>
-              <span>40 (Оптимально)</span>
-              <span>80 (Сильно)</span>
+              <span>1 (Титул)</span>
+              <span>3 (Титул + Инфо + Вводная)</span>
+              <span>6</span>
             </div>
           </div>
-          <button id="btnCleanBackground" class="btn btn-secondary" style="width: 100%;">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-            </svg>
-            <span id="btnCleanText">Очистить фон картинок</span>
-          </button>
-          <div id="cleanStatus" class="clean-status hidden"></div>
-        </div>
 
-
-        <!-- Book Stats / Summary Box -->
-        <div class="stats-box" id="statsBox">
-          <div class="stat-item">
-            <span class="stat-label">Найдено иллюстраций</span>
-            <span class="stat-value" id="statImagesCount">—</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">Всего страниц в PDF</span>
-            <span class="stat-value highlight" id="statPagesCount">—</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">Раскрасок на правой стороне</span>
-            <span class="stat-value" id="statRightSideCount">—</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">Защитных пустых страниц</span>
-            <span class="stat-value" id="statBlankCount">—</span>
-          </div>
-        </div>
-
-        <!-- Action Button -->
-        <button id="btnBuild" class="btn btn-primary btn-large">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
-            <line x1="12" y1="18" x2="12" y2="12"></line>
-            <line x1="9" y1="15" x2="15" y2="15"></line>
-          </svg>
-          <span id="btnBuildText">Собрать PDF для Amazon KDP</span>
-        </button>
-
-        <!-- Result Box -->
-        <div class="result-box hidden" id="resultBox">
-          <div class="result-header">
-            <div class="result-icon success">✓</div>
-            <div>
-              <div class="result-title">PDF успешно сгенерирован!</div>
-              <div class="result-filename" id="resultFileName">book.pdf</div>
+          <!-- Border Removal Tool Card -->
+          <div class="tool-card">
+            <div class="tool-card-header">
+              <div class="tool-card-title">
+                <span class="tool-icon">✂️</span>
+                <span>Удаление рамок ChatGPT</span>
+              </div>
+              <span class="value-bubble" style="background: rgba(16, 185, 129, 0.2); color: #6ee7b7;">100% холст</span>
             </div>
-          </div>
-          <div class="result-meta">
-            <span id="resultPages">62 стр.</span> • 
-            <span id="resultSize">0 MB</span> • 
-            <span class="badge badge-success">Готово к KDP</span>
-          </div>
-          <div class="result-actions">
-            <button id="btnOpenFolder" class="btn btn-secondary btn-sm">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            <p class="tool-card-desc">
+              Автоматически срезает рамки и масштабирует рисунок на весь лист без черных полос. Файлы обложек игнорируются.
+            </p>
+            <div class="tool-options">
+              <label class="checkbox-label">
+                <input type="checkbox" id="chkCropSkipIntro" checked>
+                <span>Не обрезать первые картинки:</span>
+                <input type="number" id="cropSkipCount" min="0" max="10" value="2" class="num-input-compact">
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="chkCropOverwrite" checked>
+                <span>Перезаписать старые файлы</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="chkCropDebug">
+                <span>Режим отладки (сохранить оверлеи в debug)</span>
+              </label>
+            </div>
+            <button id="btnCropBorders" class="btn btn-secondary btn-full">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2"/>
               </svg>
-              Открыть в проводнике
+              <span id="btnCropText">Удалить рамки с картинок</span>
             </button>
-            <a id="btnDownload" class="btn btn-primary btn-sm" download>
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
+            <div id="cropStatus" class="clean-status hidden"></div>
+          </div>
+
+          <!-- Background Whitening Tool Card -->
+          <div class="tool-card">
+            <div class="tool-card-header">
+              <div class="tool-card-title">
+                <span class="tool-icon">✨</span>
+                <span>Очистка фона ChatGPT</span>
+              </div>
+              <span class="value-bubble" id="brightnessVal">+40 ед.</span>
+            </div>
+            <p class="tool-card-desc">
+              Эмуляция Photoshop: делает серый фон рисунков идеально белым (#FFFFFF), сохраняя контуры чёрными.
+            </p>
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label for="brightnessSlider" class="form-label" style="font-size: 11px;">
+                <span>Сила отбеливания (сдвиг белой точки)</span>
+              </label>
+              <input 
+                type="range" 
+                id="brightnessSlider" 
+                class="range-slider" 
+                min="10" 
+                max="80" 
+                value="40" 
+                step="5"
+              >
+              <div class="slider-labels">
+                <span>10 (Мягко)</span>
+                <span>40 (Оптимально)</span>
+                <span>80 (Сильно)</span>
+              </div>
+            </div>
+            <div class="tool-options" style="margin-bottom: 14px;">
+              <label class="checkbox-label">
+                <input type="checkbox" id="chkCleanOverwrite" checked>
+                <span>Перезаписать старые файлы</span>
+              </label>
+            </div>
+            <button id="btnCleanBackground" class="btn btn-secondary btn-full">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
               </svg>
-              Скачать PDF
-            </a>
+              <span id="btnCleanText">Очистить фон картинок</span>
+            </button>
+            <div id="cleanStatus" class="clean-status hidden"></div>
+          </div>
+
+          <!-- Book Stats Box -->
+          <div class="stats-box" id="statsBox">
+            <div class="stat-item">
+              <span class="stat-label">Найдено иллюстраций</span>
+              <span class="stat-value" id="statImagesCount">—</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Всего страниц в PDF</span>
+              <span class="stat-value highlight" id="statPagesCount">—</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Раскрасок на правой стороне</span>
+              <span class="stat-value" id="statRightSideCount">—</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Защитных пустых страниц</span>
+              <span class="stat-value" id="statBlankCount">—</span>
+            </div>
+          </div>
+
+          <!-- Build Button -->
+          <button id="btnBuild" class="btn btn-primary btn-large btn-full">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="12" y1="18" x2="12" y2="12"></line>
+              <line x1="9" y1="15" x2="15" y2="15"></line>
+            </svg>
+            <span id="btnBuildText">Собрать Interior PDF для Amazon KDP</span>
+          </button>
+
+          <!-- Result Box -->
+          <div class="result-box hidden" id="resultBox">
+            <div class="result-header">
+              <div class="result-icon success">✓</div>
+              <div style="min-width: 0; flex: 1;">
+                <div class="result-title">Interior PDF успешно сгенерирован!</div>
+                <div class="result-file-row">
+                  <span class="result-filepath" id="resultFilePath" title="Открыть файл">book.pdf</span>
+                  <button id="btnOpenFolder" class="btn-icon-action" title="Показать в проводнике">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="result-meta">
+              <span id="resultPages">62 стр.</span> • 
+              <span id="resultSize">0 MB</span> • 
+              <span class="badge badge-success">Готово к KDP</span>
+            </div>
+            <div class="result-actions">
+              <a id="btnDownload" class="btn btn-primary btn-sm" download>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Скачать PDF
+              </a>
+            </div>
           </div>
         </div>
-      </section>
 
-      <!-- Right Column: Interactive Page Spread Preview -->
-      <section class="preview-panel glass-card">
-        <div class="preview-header">
-          <div>
-            <h2 class="section-title">Предпросмотр страниц книги</h2>
-            <p class="section-subtitle">
-              Разворот: чётные страницы — слева (Verso), нечётные страницы — справа (Recto).
+        <!-- Right Column: Interactive Page Spread Preview -->
+        <div class="preview-panel glass-card">
+          <div class="preview-header">
+            <div>
+              <h2 class="section-title">Предпросмотр страниц книги</h2>
+              <p class="section-subtitle">
+                Разворот: чётные страницы — слева (Verso), нечётные страницы — справа (Recto).
+              </p>
+            </div>
+            <div class="preview-legend">
+              <span class="legend-item"><span class="legend-dot dot-img"></span> Иллюстрация</span>
+              <span class="legend-item"><span class="legend-dot dot-blank"></span> Пустой лист защиты</span>
+            </div>
+          </div>
+
+          <div class="pages-grid" id="pagesGrid">
+            <div class="empty-state">
+              <div class="empty-icon">📖</div>
+              <div class="empty-text">Выберите папку с изображениями через «Обзор...»</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- TAB 2: COVER BUILDER                           -->
+    <!-- ============================================== -->
+    <section id="tabCover" class="tab-pane">
+      <div class="main-grid">
+        <!-- Left Column: Cover Controls -->
+        <div class="control-panel glass-card">
+          <h2 class="section-title">Параметры обложки Amazon KDP</h2>
+
+          <!-- Cover Files Detection Status -->
+          <div class="cover-status-card">
+            <div class="cover-file-status" id="frontCoverStatus">
+              <div class="status-indicator-dot dot-missing" id="frontDot"></div>
+              <div class="status-info">
+                <span class="status-label">Передняя обложка (Front)</span>
+                <span class="status-filename" id="frontCoverFilename">cover_front.* не найден</span>
+              </div>
+            </div>
+            <div class="cover-file-status" id="backCoverStatus">
+              <div class="status-indicator-dot dot-missing" id="backDot"></div>
+              <div class="status-info">
+                <span class="status-label">Задняя обложка (Back)</span>
+                <span class="status-filename" id="backCoverFilename">cover_back.* не найден</span>
+              </div>
+            </div>
+            <p class="cover-status-tip" id="coverStatusTip">
+              Поместите файлы <code>cover_front.png</code> и <code>cover_back.png</code> в выбранную папку книги.
             </p>
           </div>
-          <div class="preview-legend">
-            <span class="legend-item"><span class="legend-dot dot-img"></span> Иллюстрация</span>
-            <span class="legend-item"><span class="legend-dot dot-blank"></span> Пустой лист защиты</span>
+
+          <!-- Spine Thickness and Color -->
+          <div class="tool-card">
+            <div class="tool-card-header">
+              <div class="tool-card-title">
+                <span class="tool-icon">📏</span>
+                <span>Корешок книги (Spine)</span>
+              </div>
+              <span class="value-bubble" id="spineFormulaBadge">0.0572 мм/стр</span>
+            </div>
+            <div class="spine-inputs-grid">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label for="inputSpineWidth" class="form-label">
+                  <span>Ширина корешка (мм)</span>
+                </label>
+                <div class="spine-width-row">
+                  <input 
+                    type="number" 
+                    id="inputSpineWidth" 
+                    class="form-input" 
+                    step="0.1" 
+                    min="1.0" 
+                    max="50.0" 
+                    value="4.6"
+                    style="font-weight: 600;"
+                  >
+                  <button id="btnRecalcSpine" class="btn btn-secondary btn-sm" title="Пересчитать по страницам interior">
+                    Авто
+                  </button>
+                </div>
+                <span class="input-subnote" id="spinePagesNote">По расчёту: ~80 стр. блока</span>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 0;">
+                <label for="inputSpineColor" class="form-label">
+                  <span>Цвет корешка</span>
+                </label>
+                <div class="spine-color-row">
+                  <input type="color" id="inputSpineColor" value="#2d5a27" class="color-picker-input">
+                  <input type="text" id="inputSpineColorHex" value="#2d5a27" class="form-input hex-input" maxlength="7">
+                </div>
+                <div class="color-swatches">
+                  <span class="color-swatch" data-color="#2d5a27" style="background: #2d5a27;" title="Лесной зелёный"></span>
+                  <span class="color-swatch" data-color="#1e3a5f" style="background: #1e3a5f;" title="Глубокий синий"></span>
+                  <span class="color-swatch" data-color="#4a2e18" style="background: #4a2e18;" title="Тёплый шоколад"></span>
+                  <span class="color-swatch" data-color="#18181b" style="background: #18181b;" title="Антрацит"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4 Interior Thumbnails Selection for Back Cover -->
+          <div class="tool-card">
+            <div class="tool-card-header">
+              <div class="tool-card-title">
+                <span class="tool-icon">🖼️</span>
+                <span>4 миниатюры на заднюю обложку</span>
+              </div>
+              <span class="value-bubble" id="thumbsCountBadge">4 выбрано</span>
+            </div>
+            <p class="tool-card-desc">
+              Карточки с двойной рамкой будут отцентрированы по вертикали на задней обложке.
+            </p>
+
+            <!-- 4 Chosen slots -->
+            <div class="chosen-thumbs-grid" id="chosenThumbsGrid">
+              <div class="thumb-slot" data-index="0"><span class="slot-empty">1</span></div>
+              <div class="thumb-slot" data-index="1"><span class="slot-empty">2</span></div>
+              <div class="thumb-slot" data-index="2"><span class="slot-empty">3</span></div>
+              <div class="thumb-slot" data-index="3"><span class="slot-empty">4</span></div>
+            </div>
+
+            <!-- Button to open gallery selector -->
+            <button id="btnToggleGallery" class="btn btn-secondary btn-full btn-sm" style="margin-top: 10px;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+              <span>Выбрать другие страницы из книги...</span>
+            </button>
+
+            <!-- Collapsible Interior Gallery for Selection -->
+            <div class="interior-gallery-drawer hidden" id="interiorGalleryDrawer">
+              <div class="drawer-header">
+                <span class="drawer-title">Нажмите на картинку, чтобы добавить её в слот</span>
+                <span class="active-slot-hint" id="activeSlotHint">Выбор для слота 1</span>
+              </div>
+              <div class="drawer-grid" id="interiorGalleryGrid">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Brand Logo Info -->
+          <div class="logo-source-card">
+            <div class="logo-source-preview">
+              <img src="/api/brand-logo" alt="Brand Logo" id="brandLogoImg" onerror="this.style.display='none'">
+            </div>
+            <div class="logo-source-info">
+              <span class="logo-source-title">Логотип Fairytale Compass</span>
+              <span class="logo-source-desc">Размещается в нижнем левом углу задней обложки</span>
+            </div>
+            <span class="badge badge-accent">Auto</span>
+          </div>
+
+          <!-- Action Buttons for Cover -->
+          <div class="cover-action-buttons">
+            <button id="btnPreviewCover" class="btn btn-secondary btn-large btn-full">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <span>Предпросмотр обложки</span>
+            </button>
+
+            <button id="btnBuildCover" class="btn btn-primary btn-large btn-full">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="12" y1="18" x2="12" y2="12"></line>
+                <line x1="9" y1="15" x2="15" y2="15"></line>
+              </svg>
+              <span id="btnBuildCoverText">Собрать Cover PDF для Amazon KDP</span>
+            </button>
+          </div>
+
+          <!-- Cover Result Box (reusing interior style) -->
+          <div class="result-box hidden" id="coverResultBox">
+            <div class="result-header">
+              <div class="result-icon success">✓</div>
+              <div style="min-width: 0; flex: 1;">
+                <div class="result-title">Cover PDF успешно сгенерирован!</div>
+                <div class="result-file-row">
+                  <span class="result-filepath" id="coverResultFilePath" title="Открыть файл">cover.pdf</span>
+                  <button id="btnCoverOpenFolder" class="btn-icon-action" title="Показать в проводнике">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="result-meta">
+              <span id="coverResultSize">0 MB</span> • 
+              <span id="coverResultFormat">A4</span> • 
+              <span class="badge badge-success">Готово к KDP Cover</span>
+            </div>
+            <div class="result-actions">
+              <a id="btnCoverDownload" class="btn btn-primary btn-sm" download>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Скачать Cover PDF
+              </a>
+            </div>
           </div>
         </div>
 
-        <!-- Grid of Page Thumbnails -->
-        <div class="pages-grid" id="pagesGrid">
-          <div class="empty-state">
-            <div class="empty-icon">📖</div>
-            <div class="empty-text">Нажмите «Анализ» для загрузки структуры книги</div>
+        <!-- Right Column: Cover Preview Screen -->
+        <div class="preview-panel glass-card">
+          <div class="preview-header">
+            <div>
+              <h2 class="section-title">Предпросмотр разворота обложки</h2>
+              <p class="section-subtitle">
+                Amazon KDP Paperback Wrap: Задняя обложка (слева) • Корешок (по центру) • Передняя обложка (справа)
+              </p>
+            </div>
+            <div class="preview-legend">
+              <span class="legend-item" id="coverDimsBadge">429.58 × 303.35 мм (с Bleed 3.175мм)</span>
+            </div>
+          </div>
+
+          <!-- Cover Canvas Container -->
+          <div class="cover-canvas-container" id="coverCanvasContainer">
+            <div class="cover-empty-state" id="coverEmptyState">
+              <div class="empty-icon">🎨</div>
+              <div class="empty-text">Нажмите «Предпросмотр обложки», чтобы отобразить собранный макет</div>
+            </div>
+
+            <!-- The Cover Spread Stage -->
+            <div class="cover-stage hidden" id="coverStage">
+              <!-- Back Cover Area (Left) -->
+              <div class="cover-pane back-pane" id="coverBackPane">
+                <!-- 4 Thumbnails Grid (Vertically Centered) -->
+                <div class="cover-thumbs-quad" id="coverThumbsQuad">
+                  <div class="cover-thumb-card" id="ctCard0"><img id="ctImg0" src="" alt="Thumbnail 1"></div>
+                  <div class="cover-thumb-card" id="ctCard1"><img id="ctImg1" src="" alt="Thumbnail 2"></div>
+                  <div class="cover-thumb-card" id="ctCard2"><img id="ctImg2" src="" alt="Thumbnail 3"></div>
+                  <div class="cover-thumb-card" id="ctCard3"><img id="ctImg3" src="" alt="Thumbnail 4"></div>
+                </div>
+
+                <!-- Brand Logo (Bottom Left) -->
+                <div class="cover-brand-logo-area">
+                  <img src="/api/brand-logo" alt="Logo" class="cover-stage-logo">
+                </div>
+
+                <!-- Safe Barcode Zone Label (Bottom Right) -->
+                <div class="cover-barcode-safe-zone">
+                  <span>Зона штрихкода Amazon KDP</span>
+                </div>
+              </div>
+
+              <!-- Spine Area (Center) -->
+              <div class="cover-pane spine-pane" id="coverSpinePane">
+                <span class="spine-vertical-label" id="spineLabel"></span>
+              </div>
+
+              <!-- Front Cover Area (Right) -->
+              <div class="cover-pane front-pane" id="coverFrontPane">
+                <div class="front-overlay-badge">Front Cover</div>
+              </div>
+            </div>
           </div>
         </div>
-      </section>
-    </main>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- TAB 3: A+ CONTENT BANNER BUILDER               -->
+    <!-- ============================================== -->
+    <section id="tabAplus" class="tab-pane">
+      <div class="main-grid">
+        <!-- Left Column: Controls & Configuration -->
+        <div class="control-panel glass-card">
+          <div class="panel-section-header">
+            <div>
+              <h2 class="section-title">Генератор A+ Баннеров</h2>
+              <p class="section-subtitle">Автоматическая посадка иллюстраций в макеты Amazon A+ Content</p>
+            </div>
+            <span class="badge badge-accent">300 DPI • Auto-Shadows</span>
+          </div>
+
+          <!-- Step 1: Choose Template -->
+          <div class="form-group">
+            <div class="form-label-row">
+              <label class="form-label">
+                <span>1. Выберите шаблон баннера</span>
+                <span class="value-bubble" id="aplusTemplatesCount">7 шаблонов</span>
+              </label>
+              <button id="btnBrowseAplusFolder" class="btn btn-subtle-sm" title="Сменить папку с шаблонами">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <span>Папка шаблонов...</span>
+              </button>
+            </div>
+            <p class="input-hint" id="aplusTemplatesFolderHint" style="margin-bottom: 10px; word-break: break-all; font-size: 11px; opacity: 0.8;"></p>
+            
+            <!-- Filter by Format / Theme -->
+            <div class="aplus-filter-pills" id="aplusFilterPills">
+              <button class="filter-pill active" data-filter="all">Все шаблоны</button>
+              <button class="filter-pill" data-filter="a4">A4 Portrait (3)</button>
+              <button class="filter-pill" data-filter="8.5x8.5">Square 8.5" (4)</button>
+            </div>
+
+            <!-- Templates Grid -->
+            <div class="aplus-templates-grid" id="aplusTemplatesGrid">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Step 2: Choose 4 Illustrations -->
+          <div class="form-group" style="margin-top: 24px;">
+            <div class="form-label-row">
+              <label class="form-label">
+                <span>2. Картинки для слотов</span>
+                <span class="value-bubble" id="aplusSlotsBadge">4 слота</span>
+              </label>
+              <div class="btn-group-sm">
+                <button id="btnAplusAutoSelect" class="btn btn-subtle-sm" title="Автоматически взять первые 4 иллюстрации книги">
+                  <span>Первые 4</span>
+                </button>
+                <button id="btnAplusRandomSelect" class="btn btn-subtle-sm" title="Выбрать 4 случайные иллюстрации">
+                  <span>🎲 Случайные 4</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 4 Slots Display -->
+            <div class="aplus-slots-grid" id="aplusSlotsGrid">
+              <div class="aplus-slot-card active" data-slot="0">
+                <div class="aplus-slot-thumb" id="aplusSlotThumb0">
+                  <span class="slot-placeholder">Слот 1</span>
+                </div>
+                <div class="aplus-slot-meta">
+                  <span class="slot-num">Слот 1</span>
+                  <span class="slot-filename" id="aplusSlotName0">—</span>
+                </div>
+              </div>
+              <div class="aplus-slot-card" data-slot="1">
+                <div class="aplus-slot-thumb" id="aplusSlotThumb1">
+                  <span class="slot-placeholder">Слот 2</span>
+                </div>
+                <div class="aplus-slot-meta">
+                  <span class="slot-num">Слот 2</span>
+                  <span class="slot-filename" id="aplusSlotName1">—</span>
+                </div>
+              </div>
+              <div class="aplus-slot-card" data-slot="2">
+                <div class="aplus-slot-thumb" id="aplusSlotThumb2">
+                  <span class="slot-placeholder">Слот 3</span>
+                </div>
+                <div class="aplus-slot-meta">
+                  <span class="slot-num">Слот 3</span>
+                  <span class="slot-filename" id="aplusSlotName2">—</span>
+                </div>
+              </div>
+              <div class="aplus-slot-card" data-slot="3">
+                <div class="aplus-slot-thumb" id="aplusSlotThumb3">
+                  <span class="slot-placeholder">Слот 4</span>
+                </div>
+                <div class="aplus-slot-meta">
+                  <span class="slot-num">Слот 4</span>
+                  <span class="slot-filename" id="aplusSlotName3">—</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Drawer / Picker of interior images -->
+            <div class="aplus-interior-drawer">
+              <div class="drawer-header">
+                <span class="drawer-title" id="aplusDrawerTitle">Кликните по иллюстрации книги, чтобы поместить в Слот 1:</span>
+              </div>
+              <div class="aplus-gallery-grid" id="aplusGalleryGrid">
+                <!-- Mini thumbnails of book images -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: Options -->
+          <div class="tool-card" style="margin-top: 20px;">
+            <div class="tool-card-header">
+              <div class="tool-card-title">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                <span>Параметры генерации баннера</span>
+              </div>
+            </div>
+            <div class="tool-card-body">
+              <div class="form-group-checkbox">
+                <input type="checkbox" id="chkAplusExportAmazon" class="checkbox-input" checked>
+                <label for="chkAplusExportAmazon" class="checkbox-label">
+                  <span>Создать веб-версию для Amazon A+ (970 × 600 px)</span>
+                  <span class="sub-label">Оптимальный размер модуля A+ для быстрой загрузки в Amazon KDP</span>
+                </label>
+              </div>
+              <div class="fit-mode-toggle" style="margin-top: 12px;">
+                <label class="form-label" style="margin-bottom: 6px;">Режим масштабирования иллюстраций:</label>
+                <div class="radio-chips-row">
+                  <label class="radio-chip active" id="chipFitContain">
+                    <input type="radio" name="aplusFitMode" value="contain" checked>
+                    <span>Вписать целиком (Contain)</span>
+                  </label>
+                  <label class="radio-chip" id="chipFitCover">
+                    <input type="radio" name="aplusFitMode" value="cover">
+                    <span>Заполнить карточку (Cover)</span>
+                  </label>
+                </div>
+              </div>
+              <div class="form-group" style="margin-top: 12px; margin-bottom: 0;">
+                <label for="aplusCustomName" class="form-label">Имя файла (необязательно)</label>
+                <input type="text" id="aplusCustomName" class="form-input" placeholder="По умолчанию: a_plus_banner_<шаблон>">
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="form-actions" style="margin-top: 24px;">
+            <button id="btnAplusPreview" class="btn btn-secondary btn-full">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <span>Обновить предпросмотр</span>
+            </button>
+            <button id="btnAplusBuild" class="btn btn-primary btn-full btn-glow">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+              <span id="btnAplusBuildText">✨ Сгенерировать A+ Баннер в папку книги</span>
+            </button>
+          </div>
+
+          <!-- Result Box -->
+          <div id="aplusResultBox" class="result-card hidden" style="margin-top: 20px;">
+            <div class="result-header">
+              <div class="result-icon">🎉</div>
+              <div class="result-title-group">
+                <h3 class="result-title">A+ Баннер успешно сохранён!</h3>
+                <p class="result-subtitle" id="aplusResultFolder"></p>
+              </div>
+            </div>
+            <div class="aplus-files-list" id="aplusFilesList">
+              <!-- Rendered created files info -->
+            </div>
+            <div class="result-actions" style="margin-top: 14px;">
+              <button id="btnAplusOpenFolder" class="btn btn-secondary btn-sm">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                </svg>
+                Открыть папку книги
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Banner Live Preview Screen -->
+        <div class="preview-panel glass-card">
+          <div class="preview-header">
+            <div>
+              <h2 class="section-title">Предпросмотр A+ Баннера</h2>
+              <p class="section-subtitle">
+                Реальный вид готового Amazon A+ контента с тенями и оформлением
+              </p>
+            </div>
+            <div class="preview-legend">
+              <span class="legend-item" id="aplusDimsBadge">1594 × 986 px • 4 карточки</span>
+            </div>
+          </div>
+
+          <!-- Banner Canvas / Preview Viewport -->
+          <div class="aplus-canvas-container" id="aplusCanvasContainer">
+            <div class="cover-empty-state" id="aplusEmptyState">
+              <div class="empty-icon">🖼️</div>
+              <div class="empty-text">Выберите шаблон и иллюстрации книги для отображения готового баннера</div>
+            </div>
+
+            <div class="aplus-preview-stage hidden" id="aplusPreviewStage">
+              <img id="aplusPreviewImg" src="" alt="A+ Banner Live Preview" class="aplus-preview-image">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=2.2"></script>
 </body>
 </html>
+

@@ -36,20 +36,66 @@ class ImageProcessor:
     SUPPORTED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 
     @classmethod
-    def get_image_files(cls, directory: str) -> List[Path]:
-        """Scan directory and return naturally sorted image file paths."""
+    def get_image_files(cls, directory: str, include_cover: bool = False) -> List[Path]:
+        """Scan directory and return naturally sorted image file paths, excluding cover_* by default."""
         dir_path = Path(directory)
         if not dir_path.exists() or not dir_path.is_dir():
             raise FileNotFoundError(f"Directory not found: {directory}")
 
+        # If an 'interior' subfolder exists and contains images, use it
+        interior_sub = dir_path / "interior"
+        target_dir = interior_sub if (interior_sub.exists() and interior_sub.is_dir()) else dir_path
+
         files = [
-            f for f in dir_path.iterdir()
+            f for f in target_dir.iterdir()
             if f.is_file() and f.suffix.lower() in cls.SUPPORTED_EXTENSIONS
         ]
+
+        if not include_cover:
+            # Exclude cover front/back/spine files from interior processing
+            files = [f for f in files if not f.stem.lower().startswith("cover_")]
 
         # Natural sort by file name
         files.sort(key=lambda f: natural_sort_key(f.name))
         return files
+
+    @classmethod
+    def find_cover_files(cls, directory: str) -> dict:
+        """
+        Locates cover_front and cover_back in the given directory or a 'cover' subfolder.
+        Returns dict with paths and filenames.
+        """
+        dir_path = Path(directory)
+        if not dir_path.exists() or not dir_path.is_dir():
+            return {"front": None, "back": None}
+
+        # Check root dir first, then 'cover' subfolder
+        search_dirs = [dir_path]
+        cover_sub = dir_path / "cover"
+        if cover_sub.exists() and cover_sub.is_dir():
+            search_dirs.append(cover_sub)
+
+        front_path = None
+        back_path = None
+
+        for d in search_dirs:
+            for f in d.iterdir():
+                if not f.is_file() or f.suffix.lower() not in cls.SUPPORTED_EXTENSIONS:
+                    continue
+                stem = f.stem.lower()
+                if stem == "cover_front" or stem == "front":
+                    if not front_path:
+                        front_path = f
+                elif stem == "cover_back" or stem == "back":
+                    if not back_path:
+                        back_path = f
+
+        return {
+            "front": str(front_path.resolve()) if front_path else None,
+            "front_name": front_path.name if front_path else None,
+            "back": str(back_path.resolve()) if back_path else None,
+            "back_name": back_path.name if back_path else None,
+        }
 
     @classmethod
     def build_book_plan(

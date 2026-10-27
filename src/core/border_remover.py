@@ -134,53 +134,67 @@ class BorderRemover:
         - If no border: copies file unchanged to output_path.
         - If debug_path given: generates visualization overlay.
         """
+        is_same_file = input_path.resolve() == output_path.resolve()
         try:
             with Image.open(input_path) as img:
+                img.load()
                 orig_size = img.size
+                dpi = img.info.get("dpi")
                 crop_box = cls.detect_crop_box(
                     img,
                     density_thresh=density_thresh,
                     safety_margin=safety_margin
                 )
 
-                output_path.parent.mkdir(parents=True, exist_ok=True)
+                if debug_path and crop_box is not None:
+                    debug_path.parent.mkdir(parents=True, exist_ok=True)
+                    debug_img = img.convert("RGB")
+                    draw = ImageDraw.Draw(debug_img)
+                    draw.rectangle(crop_box, outline="red", width=max(4, int(orig_size[0] / 600)))
+                    debug_img.save(debug_path)
 
                 if crop_box is not None:
-                    processed = cls_cropped = cls.crop_and_resize(img, crop_box)
-                    # Preserve DPI metadata if present in original
-                    dpi = img.info.get("dpi")
+                    processed = cls.crop_and_resize(img, crop_box)
+                else:
+                    processed = None
+
+            # File is now closed, safe for atomic replace on Windows
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+
+            if crop_box is not None:
+                if is_same_file:
+                    temp_file = output_path.with_name(f".tmp_{output_path.name}")
+                    if dpi:
+                        processed.save(temp_file, dpi=dpi)
+                    else:
+                        processed.save(temp_file)
+                    os.replace(temp_file, output_path)
+                else:
                     if dpi:
                         processed.save(output_path, dpi=dpi)
                     else:
                         processed.save(output_path)
 
-                    if debug_path:
-                        debug_path.parent.mkdir(parents=True, exist_ok=True)
-                        debug_img = img.convert("RGB")
-                        draw = ImageDraw.Draw(debug_img)
-                        # Draw red rectangle along the detected crop line
-                        draw.rectangle(crop_box, outline="red", width=max(4, int(orig_size[0] / 600)))
-                        debug_img.save(debug_path)
-
-                    return ImageProcessResult(
-                        filename=input_path.name,
-                        original_size=orig_size,
-                        has_border=True,
-                        crop_box=crop_box,
-                        output_path=str(output_path.resolve()),
-                        debug_path=str(debug_path.resolve()) if debug_path else None
-                    )
-                else:
-                    # No border detected - copy original file unchanged
+                return ImageProcessResult(
+                    filename=input_path.name,
+                    original_size=orig_size,
+                    has_border=True,
+                    crop_box=crop_box,
+                    output_path=str(output_path.resolve()),
+                    debug_path=str(debug_path.resolve()) if debug_path else None
+                )
+            else:
+                # No border detected
+                if not is_same_file:
                     shutil.copy2(input_path, output_path)
-                    return ImageProcessResult(
-                        filename=input_path.name,
-                        original_size=orig_size,
-                        has_border=False,
-                        crop_box=None,
-                        output_path=str(output_path.resolve()),
-                        debug_path=None
-                    )
+                return ImageProcessResult(
+                    filename=input_path.name,
+                    original_size=orig_size,
+                    has_border=False,
+                    crop_box=None,
+                    output_path=str(output_path.resolve()),
+                    debug_path=None
+                )
         except Exception as e:
             return ImageProcessResult(
                 filename=input_path.name,
@@ -197,24 +211,26 @@ class BorderRemover:
         debug: bool = False,
         density_thresh: float = 0.60,
         safety_margin: int = 2,
+        skip_count: int = 0,
         progress_callback: Optional[Callable[[int, int, str], None]] = None
     ) -> Dict[str, Any]:
         """
         Batch processes all supported images in input_dir.
-        Default output_dir: input_dir / "cropped"
+        Default output_dir: input_dir (overwrites in place)
+        skip_count: number of initial images to keep unchanged without border removal
         """
         if not input_dir.exists() or not input_dir.is_dir():
             raise FileNotFoundError(f"Input directory does not exist: {input_dir}")
 
         if output_dir is None:
-            output_dir = input_dir / "cropped"
+            output_dir = input_dir
 
         output_dir.mkdir(parents=True, exist_ok=True)
         debug_dir = (output_dir / "debug") if debug else None
 
         files = [
             f for f in input_dir.iterdir()
-            if f.is_file() and f.suffix.lower() in cls.SUPPORTED_EXTENSIONS
+            if f.is_file() and f.suffix.lower() in cls.SUPPORTED_EXTENSIONS and not f.stem.lower().startswith("cover_")
         ]
         files.sort(key=lambda f: natural_sort_key(f.name))
 
@@ -233,6 +249,22 @@ class BorderRemover:
 
             if progress_callback:
                 progress_callback(idx + 1, total, f"Processing {file_path.name}...")
+
+            if idx < skip_count:
+                # Skip initial images (e.g. title/copyright pages)
+                is_same_file = file_path.resolve() == out_file.resolve()
+                if not is_same_file:
+                    shutil.copy2(file_path, out_file)
+                results.append(ImageProcessResult(
+                    filename=file_path.name,
+                    original_size=(0, 0),
+                    has_border=False,
+                    crop_box=None,
+                    output_path=str(out_file.resolve()),
+                    debug_path=None
+                ))
+                copied_count += 1
+                continue
 
             res = cls.process_image(
                 input_path=file_path,

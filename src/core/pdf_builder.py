@@ -35,12 +35,11 @@ class PDFBuilder:
         frame_gap_pt = mm_to_pt(FRAME_GAP_MM)
         line_width = FRAME_LINE_WIDTH_PT
 
-        # Determine output path if not specified
+        # Determine output path if not specified (save directly into the images folder)
         if not output_path:
-            folder_name = Path(plan.folder_path).name
-            output_dir = Path(plan.folder_path).parent.parent / "output"
-            output_dir.mkdir(parents=True, exist_ok=True)
-            output_path = str((output_dir / f"{folder_name}_{plan.format.value}_interior.pdf").resolve())
+            folder_path = Path(plan.folder_path)
+            folder_name = folder_path.name
+            output_path = str((folder_path / f"{folder_name}_{plan.format.value}_interior.pdf").resolve())
         else:
             out_file = Path(output_path)
             out_file.parent.mkdir(parents=True, exist_ok=True)

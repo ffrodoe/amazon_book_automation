@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import Tuple
 
 
@@ -59,6 +60,32 @@ FRAME_GAP_MM = 3.0        # Gap between double lines
 
 # Background whitening default offset
 DEFAULT_BRIGHTNESS_OFFSET = 40
+
+
+# Amazon KDP Cover Specifications
+BLEED_MM = 3.175  # 0.125 inch bleed on all outside edges
+SPINE_PAGE_THICKNESS_MM = 0.0572  # 0.002252 in / page for B&W white paper
+
+# Cover Layout Specification (Single Source of Truth for PDF Builder & UI Preview)
+COVER_LAYOUT_SPEC = {
+    # 4 Miniature Interior Cards on Back Cover
+    "thumb_width_ratio": 0.31,        # card_w = trim_w * 0.29 (+5% larger, horizontally centered)
+    "thumb_grid_bottom_ratio": 0.67,   # bottom of grid ends at 65% of trim height
+    "thumb_gap_x_pt": 14.0,            # horizontal gap between cards
+    "thumb_gap_y_pt": 14.0,            # vertical gap between cards
+    "thumb_card_padding_pt": 5.0,      # white border around artwork
+    "thumb_frame_gap_pt": 1.5,         # gap between double frames
+    "thumb_frame_line_pt": 0.65,       # border line width
+
+    # Brand Logo on Back Cover
+    "logo_width_ratio": 0.32,          # logo_w = trim_w * 0.44
+    "logo_bottom_ratio": 0.04,         # 4% from bottom trim
+    "logo_left_ratio": 0.07,           # 7% from left trim
+}
+
+# Default Assets
+ROOT_DIR = Path(__file__).resolve().parent.parent
+DEFAULT_LOGO_PATH = ROOT_DIR / "brand_logo.png"
 
 
 def mm_to_pt(mm: float) -> float:

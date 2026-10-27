@@ -20,7 +20,14 @@ if not exist "%PYTHON_EXE%" (
 )
 
 set "TARGET_DIR=%~1"
-if "%TARGET_DIR%"=="" set "TARGET_DIR=reference\FarmAdventures"
+if "%TARGET_DIR%"=="" (
+    set /p "TARGET_DIR=Enter folder path containing images: "
+)
+if "%TARGET_DIR%"=="" (
+    echo [ERROR] No folder path specified!
+    pause
+    exit /b 1
+)
 
 echo Target folder: "%TARGET_DIR%"
 echo Whitening background to pure #FFFFFF...

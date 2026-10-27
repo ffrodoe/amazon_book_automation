@@ -23,17 +23,19 @@ echo ========================================================
 set "INPUT_DIR=%~1"
 
 if "%INPUT_DIR%"=="" (
-    set /p "INPUT_DIR=Enter folder path [press Enter for 'reference\FarmAdventures']: "
+    set /p "INPUT_DIR=Enter folder path containing images: "
 )
 
 if "%INPUT_DIR%"=="" (
-    set "INPUT_DIR=reference\FarmAdventures"
+    echo [ERROR] No folder path specified!
+    pause
+    exit /b 1
 )
 
 echo Processing folder: %INPUT_DIR%
 echo.
 
-"%PYTHON_EXE%" crop_borders.py -i "%INPUT_DIR%" --debug
+"%PYTHON_EXE%" crop_borders.py -i "%INPUT_DIR%"
 
 echo.
 pause

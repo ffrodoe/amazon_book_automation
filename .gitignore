@@ -1,2 +1,37 @@
-/reference
-/output
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments & secrets
+.env
+.env.*
+.venv/
+venv/
+ENV/
+
+# IDEs & editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Testing & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs and temp files
+*.log
+temp/
+tmp/
+
+# Project output / reference data
+/reference/
+/output/

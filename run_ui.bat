@@ -23,5 +23,5 @@ if not exist "%PYTHON_EXE%" (
 echo Starting server at http://127.0.0.1:8000 ...
 start "" http://127.0.0.1:8000
 
-"%PYTHON_EXE%" -m uvicorn src.web.app:app --host 127.0.0.1 --port 8000
+"%PYTHON_EXE%" -m uvicorn src.web.app:app --host 127.0.0.1 --port 8000 --reload
 pause

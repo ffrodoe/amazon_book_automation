@@ -67,7 +67,7 @@ class ImageCleaner:
 
         files = [
             f for f in in_path.iterdir()
-            if f.is_file() and f.suffix.lower() in cls.SUPPORTED_EXTENSIONS
+            if f.is_file() and f.suffix.lower() in cls.SUPPORTED_EXTENSIONS and not f.stem.lower().startswith("cover_")
         ]
         files.sort(key=lambda f: natural_sort_key(f.name))
 
@@ -77,13 +77,31 @@ class ImageCleaner:
         cleaned_files: List[str] = []
         total = len(files)
 
+        import os
+        is_same_dir = (in_path.resolve() == out_path.resolve())
+
         for idx, file_path in enumerate(files):
             num = idx + 1
             dest_file = out_path / file_path.name
 
             with Image.open(file_path) as img:
+                img.load()
+                fmt = img.format or "PNG"
+                dpi = img.info.get("dpi")
                 cleaned_img = cls.clean_image(img, brightness_offset=brightness_offset)
-                cleaned_img.save(dest_file, format=img.format or "PNG")
+
+            if is_same_dir:
+                temp_file = dest_file.with_name(f".tmp_{dest_file.name}")
+                if dpi:
+                    cleaned_img.save(temp_file, format=fmt, dpi=dpi)
+                else:
+                    cleaned_img.save(temp_file, format=fmt)
+                os.replace(temp_file, dest_file)
+            else:
+                if dpi:
+                    cleaned_img.save(dest_file, format=fmt, dpi=dpi)
+                else:
+                    cleaned_img.save(dest_file, format=fmt)
 
             cleaned_files.append(str(dest_file))
 

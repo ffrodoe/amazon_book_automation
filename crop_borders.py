@@ -30,18 +30,24 @@ Examples:
     parser.add_argument(
         "-o", "--output",
         default=None,
-        help="Custom output folder (default: <input>/cropped)"
+        help="Custom output folder (default: overwrite source folder in-place)"
     )
     parser.add_argument(
         "--debug",
         action="store_true",
-        help="Save debug visualization images with marked crop borders to <output>/debug"
+        help="Save debug visualization images with marked crop borders to <output>/debug (default: off)"
     )
     parser.add_argument(
         "--density",
         type=float,
         default=0.60,
         help="Line density threshold for border detection (default: 0.60)"
+    )
+    parser.add_argument(
+        "--skip-count",
+        type=int,
+        default=2,
+        help="Number of initial images to keep unchanged without border removal (default: 2)"
     )
 
     args = parser.parse_args()
@@ -51,13 +57,14 @@ Examples:
         print(f"[ERROR] Input directory does not exist or is not a folder: {input_path}")
         sys.exit(1)
 
-    out_path = Path(args.output) if args.output else input_path / "cropped"
+    out_path = Path(args.output) if args.output else input_path
 
     print("=" * 65)
     print(" Amazon KDP Coloring Book - Frame & Border Remover")
     print("=" * 65)
     print(f" Source Folder: {input_path.resolve()}")
     print(f" Target Folder: {out_path.resolve()}")
+    print(f" Skip Initial:  {args.skip_count} images")
     print(f" Debug Overlays: {'Enabled' if args.debug else 'Disabled'}")
     print("-" * 65)
 
@@ -77,6 +84,7 @@ Examples:
             output_dir=out_path,
             debug=args.debug,
             density_thresh=args.density,
+            skip_count=args.skip_count,
             progress_callback=print_progress
         )
         print()  # newline after progress bar
