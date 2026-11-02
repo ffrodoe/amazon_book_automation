@@ -78,9 +78,10 @@ COVER_LAYOUT_SPEC = {
     "thumb_frame_line_pt": 0.65,       # border line width
 
     # Brand Logo on Back Cover
-    "logo_width_ratio": 0.32,          # logo_w = trim_w * 0.44
-    "logo_bottom_ratio": 0.04,         # 4% from bottom trim
-    "logo_left_ratio": 0.07,           # 7% from left trim
+    "logo_width_ratio": 0.15,          # logo_w = trim_w * 0.44
+    "logo_bottom_ratio": 0.05,         # 4% from bottom trim
+    "logo_left_ratio": 0.1  
+    ,           # 7% from left trim
 }
 
 # Default Assets

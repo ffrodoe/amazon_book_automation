@@ -6,18 +6,13 @@ echo ====================================================
 echo  Launching KDP Coloring Book Studio (Web UI)
 echo ====================================================
 
-set "PYTHON_EXE=%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
+call "%~dp0find_python.bat"
+if errorlevel 1 exit /b 1
 
-if not exist "%PYTHON_EXE%" (
-    where python >nul 2>nul
-    if %errorlevel% equ 0 (
-        set "PYTHON_EXE=python"
-    ) else (
-        echo [ERROR] Python 3.12 was not found!
-        echo Please run install_requirements.bat first.
-        pause
-        exit /b 1
-    )
+"%PYTHON_EXE%" -c "import uvicorn" >nul 2>nul
+if errorlevel 1 (
+    echo [INFO] Dependencies not installed yet. Installing from requirements.txt...
+    "%PYTHON_EXE%" -m pip install -r requirements.txt
 )
 
 echo Starting server at http://127.0.0.1:8000 ...

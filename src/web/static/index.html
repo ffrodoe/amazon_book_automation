@@ -259,6 +259,64 @@
             <div id="cleanStatus" class="clean-status hidden"></div>
           </div>
 
+          <!-- Upscale Tool Card -->
+          <div class="tool-card">
+            <div class="tool-card-header">
+              <div class="tool-card-title">
+                <span class="tool-icon">🔍</span>
+                <span>Апскейл до 300+ DPI</span>
+              </div>
+              <span class="value-bubble" style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc;">KDP Quality</span>
+            </div>
+            <p class="tool-card-desc">
+              Пакетное увеличение разрешения картинок ChatGPT без лимита на количество файлов.
+            </p>
+            <div class="tool-options" style="margin-bottom: 10px;">
+              <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px; font-weight: 600;">Режим обработки:</div>
+              <div class="radio-chips-row" style="margin-bottom: 8px;">
+                <label class="radio-chip active" id="chipUpscaleFast" style="flex: 1; justify-content: center; font-size: 11px; padding: 7px 6px;">
+                  <input type="radio" name="upscaleMode" value="fast" checked>
+                  <span>⚡ <b>Быстрый</b> (0% нагрузки)</span>
+                </label>
+                <label class="radio-chip" id="chipUpscaleAi" style="flex: 1; justify-content: center; font-size: 11px; padding: 7px 6px;">
+                  <input type="radio" name="upscaleMode" value="ai">
+                  <span>🧠 <b>AI Real-ESRGAN</b> (Eco)</span>
+                </label>
+              </div>
+
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Коэффициент:</span>
+                <div style="display: flex; gap: 8px;">
+                  <label style="font-size: 11px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <input type="radio" name="upscaleScale" value="2" style="accent-color: var(--accent-primary);"> 2x
+                  </label>
+                  <label style="font-size: 11px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <input type="radio" name="upscaleScale" value="4" checked style="accent-color: var(--accent-primary);"> 4x (до 4096px)
+                  </label>
+                </div>
+              </div>
+
+              <label class="checkbox-label" style="margin-top: 4px;">
+                <input type="checkbox" id="chkUpscaleCovers" checked>
+                <span>Обрабатывать также файлы обложек (cover_*)</span>
+              </label>
+              <label class="checkbox-label" style="margin-top: 4px;">
+                <input type="checkbox" id="chkUpscaleOverwrite" checked>
+                <span>Перезаписать старые файлы</span>
+              </label>
+            </div>
+            <button id="btnUpscaleImages" class="btn btn-secondary btn-full">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                <line x1="11" y1="8" x2="11" y2="14"></line>
+                <line x1="8" y1="11" x2="14" y2="11"></line>
+              </svg>
+              <span id="btnUpscaleText">Увеличить качество картинок (300 DPI)</span>
+            </button>
+            <div id="upscaleStatus" class="clean-status hidden"></div>
+          </div>
+
           <!-- Book Stats Box -->
           <div class="stats-box" id="statsBox">
             <div class="stat-item">
@@ -442,33 +500,41 @@
               Карточки с двойной рамкой будут отцентрированы по вертикали на задней обложке.
             </p>
 
-            <!-- 4 Chosen slots -->
-            <div class="chosen-thumbs-grid" id="chosenThumbsGrid">
-              <div class="thumb-slot" data-index="0"><span class="slot-empty">1</span></div>
-              <div class="thumb-slot" data-index="1"><span class="slot-empty">2</span></div>
-              <div class="thumb-slot" data-index="2"><span class="slot-empty">3</span></div>
-              <div class="thumb-slot" data-index="3"><span class="slot-empty">4</span></div>
-            </div>
+            <label class="checkbox-label" style="margin-top: 4px; margin-bottom: 12px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="chkIncludeThumbnails" checked style="accent-color: var(--accent-primary); width: 16px; height: 16px; cursor: pointer;">
+              <span style="font-weight: 500;">Размещать миниатюры страниц на задней обложке</span>
+            </label>
 
-            <!-- Button to open gallery selector -->
-            <button id="btnToggleGallery" class="btn btn-secondary btn-full btn-sm" style="margin-top: 10px;">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="7" height="7"></rect>
-                <rect x="14" y="3" width="7" height="7"></rect>
-                <rect x="14" y="14" width="7" height="7"></rect>
-                <rect x="3" y="14" width="7" height="7"></rect>
-              </svg>
-              <span>Выбрать другие страницы из книги...</span>
-            </button>
-
-            <!-- Collapsible Interior Gallery for Selection -->
-            <div class="interior-gallery-drawer hidden" id="interiorGalleryDrawer">
-              <div class="drawer-header">
-                <span class="drawer-title">Нажмите на картинку, чтобы добавить её в слот</span>
-                <span class="active-slot-hint" id="activeSlotHint">Выбор для слота 1</span>
+            <!-- Wrapper for collapsible thumbnails content -->
+            <div id="thumbsContentWrapper">
+              <!-- 4 Chosen slots -->
+              <div class="chosen-thumbs-grid" id="chosenThumbsGrid">
+                <div class="thumb-slot" data-index="0"><span class="slot-empty">1</span></div>
+                <div class="thumb-slot" data-index="1"><span class="slot-empty">2</span></div>
+                <div class="thumb-slot" data-index="2"><span class="slot-empty">3</span></div>
+                <div class="thumb-slot" data-index="3"><span class="slot-empty">4</span></div>
               </div>
-              <div class="drawer-grid" id="interiorGalleryGrid">
-                <!-- Populated dynamically -->
+
+              <!-- Button to open gallery selector -->
+              <button id="btnToggleGallery" class="btn btn-secondary btn-full btn-sm" style="margin-top: 10px;">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                <span>Выбрать другие страницы из книги...</span>
+              </button>
+
+              <!-- Collapsible Interior Gallery for Selection -->
+              <div class="interior-gallery-drawer hidden" id="interiorGalleryDrawer">
+                <div class="drawer-header">
+                  <span class="drawer-title">Нажмите на картинку, чтобы добавить её в слот</span>
+                  <span class="active-slot-hint" id="activeSlotHint">Выбор для слота 1</span>
+                </div>
+                <div class="drawer-grid" id="interiorGalleryGrid">
+                  <!-- Populated dynamically -->
+                </div>
               </div>
             </div>
           </div>

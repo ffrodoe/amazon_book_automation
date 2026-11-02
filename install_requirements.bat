@@ -6,22 +6,18 @@ echo ====================================================
 echo  Installing Book Creation Automation Dependencies
 echo ====================================================
 
-set "PYTHON_EXE=%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
-
-if not exist "%PYTHON_EXE%" (
-    where python >nul 2>nul
-    if %errorlevel% equ 0 (
-        set "PYTHON_EXE=python"
-    ) else (
-        echo [INFO] Python not found. Installing Python 3.12 via winget...
-        winget install Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements
-        set "PYTHON_EXE=%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
-    )
-)
+call "%~dp0find_python.bat" --install
+if errorlevel 1 exit /b 1
 
 echo Using Python at: "%PYTHON_EXE%"
 "%PYTHON_EXE%" -m pip install --upgrade pip
 "%PYTHON_EXE%" -m pip install -r requirements.txt
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Failed to install dependencies from requirements.txt!
+    pause
+    exit /b 1
+)
 
 echo.
 echo ====================================================

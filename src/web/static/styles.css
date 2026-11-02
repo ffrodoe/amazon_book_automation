@@ -1787,12 +1787,15 @@ body {
 .radio-chip:hover {
   color: var(--text-main);
   background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
-.radio-chip.active {
-  background: rgba(99, 102, 241, 0.15);
-  border-color: var(--accent-primary);
-  color: #fff;
+.radio-chip.active,
+.radio-chip:has(input:checked) {
+  background: rgba(99, 102, 241, 0.2) !important;
+  border-color: var(--accent-primary) !important;
+  color: #fff !important;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.25);
 }
 
 /* Banner Canvas Container */

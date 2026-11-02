@@ -27,6 +27,7 @@ from src.core.cover_builder import CoverBuilder
 from src.core.image_cleaner import ImageCleaner
 from src.core.border_remover import BorderRemover
 from src.core.aplus_builder import APlusBuilder
+from src.core.image_upscaler import ImageUpscaler
 
 app = FastAPI(title="Amazon KDP Coloring Book Studio", version="1.0.0")
 
@@ -73,12 +74,23 @@ class CropBordersRequest(BaseModel):
     custom_output_dir: Optional[str] = None
 
 
+class UpscaleImagesRequest(BaseModel):
+    folder_path: str
+    mode: str = "ai"  # 'ai' (Real-ESRGAN Eco) or 'fast' (Lanczos 0% load)
+    scale: int = 4
+    model: str = "realesrgan-x4plus-anime"
+    overwrite: bool = True
+    include_covers: bool = True
+    custom_output_dir: Optional[str] = None
+
+
 class BuildCoverRequest(BaseModel):
     folder_path: str
     format: str = "a4"
     front_cover_path: Optional[str] = None
     back_cover_path: Optional[str] = None
     interior_image_paths: List[str] = []
+    include_back_thumbnails: bool = True
     spine_width_mm: float
     spine_color: str = "#2d5a27"
     custom_output_name: Optional[str] = None
@@ -392,11 +404,13 @@ def build_cover(req: BuildCoverRequest):
     if not back_p or not Path(back_p).exists():
         raise HTTPException(status_code=400, detail="Back cover image (cover_back.*) not found")
 
-    # If thumbnails not provided, take first 4 from interior
-    thumb_paths = req.interior_image_paths
-    if not thumb_paths:
-        int_files = ImageProcessor.get_image_files(str(target_path), include_cover=False)
-        thumb_paths = [str(f.resolve()) for f in int_files[:4]]
+    # If thumbnails enabled and not provided, take first 4 from interior
+    thumb_paths = []
+    if req.include_back_thumbnails:
+        thumb_paths = req.interior_image_paths
+        if not thumb_paths:
+            int_files = ImageProcessor.get_image_files(str(target_path), include_cover=False)
+            thumb_paths = [str(f.resolve()) for f in int_files[:4]]
 
     output_dir = target_path
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -555,6 +569,55 @@ def crop_borders(req: CropBordersRequest):
             "cropped_count": results["cropped_count"],
             "copied_count": results["copied_count"],
             "error_count": results["error_count"],
+            "is_overwrite": (out_path.resolve() == target_path.resolve())
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/upscale-images")
+def upscale_images(req: UpscaleImagesRequest):
+    """Batch AI upscales interior images using Real-ESRGAN (Anime/Line-Art model) to 300+ DPI."""
+    target_path = Path(req.folder_path)
+    if not target_path.is_absolute():
+        target_path = (ROOT_DIR / req.folder_path).resolve()
+
+    if not target_path.exists() or not target_path.is_dir():
+        raise HTTPException(status_code=404, detail=f"Directory not found: {target_path}")
+
+    try:
+        if req.custom_output_dir:
+            out_path = Path(req.custom_output_dir)
+            if not out_path.is_absolute():
+                out_path = (ROOT_DIR / req.custom_output_dir).resolve()
+        elif req.overwrite:
+            out_path = target_path
+        else:
+            out_path = target_path / "upscaled"
+
+        upscaled_files = ImageUpscaler.upscale_folder(
+            input_dir=str(target_path),
+            output_dir=str(out_path),
+            mode=req.mode,
+            scale=req.scale,
+            model=req.model,
+            include_covers=req.include_covers
+        )
+
+        try:
+            rel_output = str(out_path.relative_to(ROOT_DIR))
+        except ValueError:
+            rel_output = str(out_path)
+
+        return {
+            "success": True,
+            "input_dir": str(target_path),
+            "output_dir": str(out_path),
+            "relative_output_dir": rel_output,
+            "total_upscaled": len(upscaled_files),
+            "mode": req.mode,
+            "scale": req.scale,
+            "model": req.model,
             "is_overwrite": (out_path.resolve() == target_path.resolve())
         }
     except Exception as e:

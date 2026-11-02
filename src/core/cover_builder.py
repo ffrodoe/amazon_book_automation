@@ -152,8 +152,8 @@ class CoverBuilder:
         book_format: BookFormat,
         front_cover_path: str,
         back_cover_path: str,
-        interior_image_paths: List[str],
-        spine_width_mm: float,
+        interior_image_paths: Optional[List[str]] = None,
+        spine_width_mm: float = 4.6,
         spine_color_hex: str = "#2d5a27",
         logo_path: Optional[str] = None,
         output_path: Optional[str] = None
@@ -162,10 +162,13 @@ class CoverBuilder:
         Builds a single-page print-ready Amazon KDP cover PDF:
         - Layout: [Back Cover] + [Spine] + [Front Cover]
         - 0.125" (3.175mm) Bleed on all 4 outside edges
-        - 4 horizontally centered interior thumbnails in double-framed mini-cards on the back cover
+        - 4 horizontally centered interior thumbnails in double-framed mini-cards on the back cover (optional)
         - Brand logo in the bottom-left corner
         - Spine with solid fill color
         """
+        if interior_image_paths is None:
+            interior_image_paths = []
+
         front_file = Path(front_cover_path)
         back_file = Path(back_cover_path)
         if not front_file.exists():

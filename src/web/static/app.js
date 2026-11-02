@@ -48,6 +48,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnCleanText = document.getElementById('btnCleanText');
   const cleanStatus = document.getElementById('cleanStatus');
 
+  const btnUpscaleImages = document.getElementById('btnUpscaleImages');
+  const btnUpscaleText = document.getElementById('btnUpscaleText');
+  const upscaleStatus = document.getElementById('upscaleStatus');
+  const chkUpscaleOverwrite = document.getElementById('chkUpscaleOverwrite');
+  const chkUpscaleCovers = document.getElementById('chkUpscaleCovers');
+  const chipUpscaleFast = document.getElementById('chipUpscaleFast');
+  const chipUpscaleAi = document.getElementById('chipUpscaleAi');
+  const upscaleModeRadios = document.querySelectorAll('input[name="upscaleMode"]');
+
   // Cover Elements
   const frontDot = document.getElementById('frontDot');
   const frontCoverFilename = document.getElementById('frontCoverFilename');
@@ -62,6 +71,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputSpineColorHex = document.getElementById('inputSpineColorHex');
   const colorSwatches = document.querySelectorAll('.color-swatch');
 
+  const chkIncludeThumbnails = document.getElementById('chkIncludeThumbnails');
+  const thumbsContentWrapper = document.getElementById('thumbsContentWrapper');
   const chosenThumbsGrid = document.getElementById('chosenThumbsGrid');
   const thumbsCountBadge = document.getElementById('thumbsCountBadge');
   const btnToggleGallery = document.getElementById('btnToggleGallery');
@@ -413,6 +424,77 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Upscale Mode Switching
+  function updateUpscaleModeUI() {
+    const selected = document.querySelector('input[name="upscaleMode"]:checked')?.value || 'fast';
+    if (chipUpscaleFast) chipUpscaleFast.classList.toggle('active', selected === 'fast');
+    if (chipUpscaleAi) chipUpscaleAi.classList.toggle('active', selected === 'ai');
+    if (btnUpscaleText && !btnUpscaleImages.disabled) {
+      btnUpscaleText.textContent = selected === 'ai'
+        ? 'Увеличить качество картинок (AI Real-ESRGAN)'
+        : 'Увеличить качество картинок (300 DPI)';
+    }
+  }
+
+  if (chipUpscaleFast && chipUpscaleAi) {
+    [chipUpscaleFast, chipUpscaleAi].forEach(chip => {
+      chip.addEventListener('click', () => {
+        const radio = chip.querySelector('input[name="upscaleMode"]');
+        if (radio) {
+          radio.checked = true;
+        }
+        updateUpscaleModeUI();
+      });
+    });
+  }
+
+  upscaleModeRadios.forEach(radio => {
+    radio.addEventListener('change', updateUpscaleModeUI);
+  });
+  updateUpscaleModeUI();
+
+  // Image Upscaling (300+ DPI)
+  btnUpscaleImages.addEventListener('click', async () => {
+    const folder = inputFolder.value.trim();
+    if (!folder) return alert('Сначала укажите папку книги');
+
+    const mode = document.querySelector('input[name="upscaleMode"]:checked')?.value || 'fast';
+    const scale = parseInt(document.querySelector('input[name="upscaleScale"]:checked')?.value || '4', 10);
+
+    btnUpscaleImages.disabled = true;
+    btnUpscaleText.textContent = mode === 'ai' 
+      ? 'AI обработка нейросетью (Eco)...' 
+      : 'Увеличение разрешения (Lanczos)...';
+    upscaleStatus.classList.add('hidden');
+
+    try {
+      const res = await fetch('/api/upscale-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          folder_path: folder,
+          mode: mode,
+          scale: scale,
+          include_covers: chkUpscaleCovers ? chkUpscaleCovers.checked : true,
+          overwrite: chkUpscaleOverwrite.checked
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Ошибка апскейла картинок');
+
+      const modeLabel = data.mode === 'ai' ? 'Real-ESRGAN AI' : 'Быстрый Lanczos';
+      upscaleStatus.textContent = `✓ Разрешение увеличено у ${data.total_upscaled} изображений (${modeLabel}, ${data.scale}x, 300 DPI)!`;
+      upscaleStatus.classList.remove('hidden');
+      await syncProject();
+    } catch (err) {
+      alert(`Ошибка апскейла: ${err.message}`);
+    } finally {
+      btnUpscaleImages.disabled = false;
+      updateUpscaleModeUI();
+    }
+  });
+
   // Build Interior PDF
   btnBuild.addEventListener('click', async () => {
     const folder = inputFolder.value.trim();
@@ -590,7 +672,28 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     });
 
-    thumbsCountBadge.textContent = `${filledCount} выбрано`;
+    if (chkIncludeThumbnails && !chkIncludeThumbnails.checked) {
+      thumbsCountBadge.textContent = 'Отключено';
+      thumbsCountBadge.style.opacity = '0.5';
+    } else {
+      thumbsCountBadge.textContent = `${filledCount} выбрано`;
+      thumbsCountBadge.style.opacity = '1';
+    }
+  }
+
+  function updateThumbnailsVisibility() {
+    const isEnabled = chkIncludeThumbnails ? chkIncludeThumbnails.checked : true;
+    if (thumbsContentWrapper) {
+      thumbsContentWrapper.style.display = isEnabled ? 'block' : 'none';
+    }
+    renderChosenThumbSlots();
+    if (coverStage && !coverStage.classList.contains('hidden') && currentCoverDetails) {
+      renderCoverStagePreview();
+    }
+  }
+
+  if (chkIncludeThumbnails) {
+    chkIncludeThumbnails.addEventListener('change', updateThumbnailsVisibility);
   }
 
   btnToggleGallery.addEventListener('click', () => {
@@ -707,11 +810,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 6. Update the 4 preview images on back cover
+    const isThumbsEnabled = chkIncludeThumbnails ? chkIncludeThumbnails.checked : true;
+    if (coverThumbsQuad) {
+      coverThumbsQuad.style.display = isThumbsEnabled ? 'grid' : 'none';
+    }
     for (let i = 0; i < 4; i++) {
       const imgPath = selectedThumbnails[i];
       const card = document.getElementById(`ctCard${i}`);
       const img = document.getElementById(`ctImg${i}`);
-      if (imgPath) {
+      if (imgPath && isThumbsEnabled) {
         img.src = `/api/image?path=${encodeURIComponent(imgPath)}`;
         card.style.display = 'block';
       } else {
@@ -737,7 +844,8 @@ document.addEventListener('DOMContentLoaded', () => {
     btnBuildCover.disabled = true;
     btnBuildCoverText.textContent = 'Сборка Cover PDF...';
 
-    const validThumbs = selectedThumbnails.filter(t => t && t.length > 0);
+    const isThumbsEnabled = chkIncludeThumbnails ? chkIncludeThumbnails.checked : true;
+    const validThumbs = isThumbsEnabled ? selectedThumbnails.filter(t => t && t.length > 0) : [];
     const spineWidthMm = parseFloat(inputSpineWidth.value) || 4.6;
     const spineColor = inputSpineColor.value || '#2d5a27';
 
@@ -751,6 +859,7 @@ document.addEventListener('DOMContentLoaded', () => {
           front_cover_path: currentCoverDetails.front_cover,
           back_cover_path: currentCoverDetails.back_cover,
           interior_image_paths: validThumbs,
+          include_back_thumbnails: isThumbsEnabled,
           spine_width_mm: spineWidthMm,
           spine_color: spineColor
         })

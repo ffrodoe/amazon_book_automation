@@ -6,18 +6,8 @@ echo ====================================================
 echo  ChatGPT Image Background Cleaner (+40 Levels)
 echo ====================================================
 
-set "PYTHON_EXE=%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
-
-if not exist "%PYTHON_EXE%" (
-    where python >nul 2>nul
-    if %errorlevel% equ 0 (
-        set "PYTHON_EXE=python"
-    ) else (
-        echo [ERROR] Python 3.12 was not found!
-        pause
-        exit /b 1
-    )
-)
+call "%~dp0find_python.bat"
+if errorlevel 1 exit /b 1
 
 set "TARGET_DIR=%~1"
 if "%TARGET_DIR%"=="" (
