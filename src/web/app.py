@@ -76,8 +76,8 @@ class CropBordersRequest(BaseModel):
 
 class UpscaleImagesRequest(BaseModel):
     folder_path: str
-    mode: str = "ai"  # 'ai' (Real-ESRGAN Eco) or 'fast' (Lanczos 0% load)
-    scale: int = 4
+    format: str = "a4"
+    mode: str = "fast"  # 'ai' (Real-ESRGAN Eco) or 'fast' (Lanczos 0% load)
     model: str = "realesrgan-x4plus-anime"
     overwrite: bool = True
     include_covers: bool = True
@@ -109,7 +109,6 @@ class APlusBuildRequest(BaseModel):
     custom_output_name: Optional[str] = None
     export_amazon_size: bool = True
     fit_mode: str = "contain"
-
 
 
 def select_folder_native(initial_dir: Optional[str] = None) -> Optional[str]:
@@ -577,13 +576,15 @@ def crop_borders(req: CropBordersRequest):
 
 @app.post("/api/upscale-images")
 def upscale_images(req: UpscaleImagesRequest):
-    """Batch AI upscales interior images using Real-ESRGAN (Anime/Line-Art model) to 300+ DPI."""
+    """Batch normalizes/upscales images to the exact 300 DPI target dimensions for the selected book format."""
     target_path = Path(req.folder_path)
     if not target_path.is_absolute():
         target_path = (ROOT_DIR / req.folder_path).resolve()
 
     if not target_path.exists() or not target_path.is_dir():
         raise HTTPException(status_code=404, detail=f"Directory not found: {target_path}")
+
+    book_format = BookFormat.A4 if req.format == "a4" else BookFormat.SQUARE_8_5
 
     try:
         if req.custom_output_dir:
@@ -595,11 +596,11 @@ def upscale_images(req: UpscaleImagesRequest):
         else:
             out_path = target_path / "upscaled"
 
-        upscaled_files = ImageUpscaler.upscale_folder(
+        result = ImageUpscaler.upscale_folder(
             input_dir=str(target_path),
             output_dir=str(out_path),
             mode=req.mode,
-            scale=req.scale,
+            book_format=book_format,
             model=req.model,
             include_covers=req.include_covers
         )
@@ -614,9 +615,15 @@ def upscale_images(req: UpscaleImagesRequest):
             "input_dir": str(target_path),
             "output_dir": str(out_path),
             "relative_output_dir": rel_output,
-            "total_upscaled": len(upscaled_files),
+            "total_upscaled": result["total_files"],
+            "total_files": result["total_files"],
+            "upscaled_count": result["upscaled_count"],
+            "downscaled_count": result["downscaled_count"],
+            "skipped_count": result["skipped_count"],
+            "target_width": result["target_width"],
+            "target_height": result["target_height"],
+            "format": result["format"],
             "mode": req.mode,
-            "scale": req.scale,
             "model": req.model,
             "is_overwrite": (out_path.resolve() == target_path.resolve())
         }
@@ -694,5 +701,3 @@ def build_aplus_banner(req: APlusBuildRequest):
 
 # Mount static directory for the Web UI
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
-
-

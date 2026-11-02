@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnUpscaleImages = document.getElementById('btnUpscaleImages');
   const btnUpscaleText = document.getElementById('btnUpscaleText');
   const upscaleStatus = document.getElementById('upscaleStatus');
+  const upscaleTargetBadge = document.getElementById('upscaleTargetBadge');
   const chkUpscaleOverwrite = document.getElementById('chkUpscaleOverwrite');
   const chkUpscaleCovers = document.getElementById('chkUpscaleCovers');
   const chipUpscaleFast = document.getElementById('chipUpscaleFast');
@@ -208,6 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
       card.classList.add('active');
       const radio = card.querySelector('input[type="radio"]');
       if (radio) radio.checked = true;
+      updateUpscaleModeUI();
       syncProject();
     });
   });
@@ -424,15 +426,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Upscale Mode Switching
+  // Upscale Mode & Target Size UI
   function updateUpscaleModeUI() {
     const selected = document.querySelector('input[name="upscaleMode"]:checked')?.value || 'fast';
+    const format = getSelectedFormat();
+    if (upscaleTargetBadge) {
+      upscaleTargetBadge.textContent = format === 'a4'
+        ? '2480 × 3508 px (A4 • 300 DPI)'
+        : '2550 × 2550 px (Square • 300 DPI)';
+    }
     if (chipUpscaleFast) chipUpscaleFast.classList.toggle('active', selected === 'fast');
     if (chipUpscaleAi) chipUpscaleAi.classList.toggle('active', selected === 'ai');
     if (btnUpscaleText && !btnUpscaleImages.disabled) {
       btnUpscaleText.textContent = selected === 'ai'
-        ? 'Увеличить качество картинок (AI Real-ESRGAN)'
-        : 'Увеличить качество картинок (300 DPI)';
+        ? 'Нормализовать размер (AI Real-ESRGAN)'
+        : 'Нормализовать размер картинок (300 DPI)';
     }
   }
 
@@ -453,18 +461,18 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   updateUpscaleModeUI();
 
-  // Image Upscaling (300+ DPI)
+  // Image Normalization & Upscaling (300 DPI)
   btnUpscaleImages.addEventListener('click', async () => {
     const folder = inputFolder.value.trim();
     if (!folder) return alert('Сначала укажите папку книги');
 
     const mode = document.querySelector('input[name="upscaleMode"]:checked')?.value || 'fast';
-    const scale = parseInt(document.querySelector('input[name="upscaleScale"]:checked')?.value || '4', 10);
+    const format = getSelectedFormat();
 
     btnUpscaleImages.disabled = true;
     btnUpscaleText.textContent = mode === 'ai' 
-      ? 'AI обработка нейросетью (Eco)...' 
-      : 'Увеличение разрешения (Lanczos)...';
+      ? 'AI нормализация до эталона (Eco)...' 
+      : 'Нормализация разрешения (Lanczos)...';
     upscaleStatus.classList.add('hidden');
 
     try {
@@ -473,18 +481,23 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           folder_path: folder,
+          format: format,
           mode: mode,
-          scale: scale,
           include_covers: chkUpscaleCovers ? chkUpscaleCovers.checked : true,
           overwrite: chkUpscaleOverwrite.checked
         })
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Ошибка апскейла картинок');
+      if (!res.ok) throw new Error(data.detail || 'Ошибка нормализации картинок');
 
-      const modeLabel = data.mode === 'ai' ? 'Real-ESRGAN AI' : 'Быстрый Lanczos';
-      upscaleStatus.textContent = `✓ Разрешение увеличено у ${data.total_upscaled} изображений (${modeLabel}, ${data.scale}x, 300 DPI)!`;
+      const details = [];
+      if (data.upscaled_count > 0) details.push(`увеличено: ${data.upscaled_count}`);
+      if (data.downscaled_count > 0) details.push(`уменьшено: ${data.downscaled_count}`);
+      if (data.skipped_count > 0) details.push(`уже в норме: ${data.skipped_count}`);
+      const detailStr = details.length > 0 ? ` (${details.join(', ')})` : '';
+
+      upscaleStatus.textContent = `✓ Готово! Все ${data.total_files} файлов приведены к ${data.target_width}×${data.target_height} px (300 DPI)${detailStr}`;
       upscaleStatus.classList.remove('hidden');
       await syncProject();
     } catch (err) {

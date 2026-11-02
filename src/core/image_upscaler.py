@@ -1,14 +1,17 @@
 import os
+import shutil
 import subprocess
 import urllib.request
 import zipfile
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from PIL import Image, ImageFilter
 
 try:
+    from src.config import BookFormat, FORMAT_SPECS
     from src.core.image_processor import natural_sort_key
 except ImportError:
+    from ..config import BookFormat, FORMAT_SPECS
     from .image_processor import natural_sort_key
 
 
@@ -22,6 +25,12 @@ RELEASE_URL = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0
 
 class ImageUpscaler:
     SUPPORTED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
+
+    @classmethod
+    def get_target_size(cls, book_format: BookFormat = BookFormat.A4) -> Tuple[int, int]:
+        """Returns exact 300 DPI pixel dimensions (width, height) for the selected book format."""
+        spec = FORMAT_SPECS.get(book_format, FORMAT_SPECS[BookFormat.A4])
+        return (spec.width_px_300dpi, spec.height_px_300dpi)
 
     @classmethod
     def is_engine_installed(cls) -> bool:
@@ -68,67 +77,79 @@ class ImageUpscaler:
         cls,
         input_path: Path,
         output_path: Path,
-        scale: int = 4,
+        target_size: Tuple[int, int] = (2480, 3508),
         model: str = "realesrgan-x4plus-anime",
         tile_size: int = 200,
         threads: str = "1:1:1"
     ) -> None:
         """
-        Upscales a single image using Real-ESRGAN in Safe/Eco mode:
-        - tile_size=200 prevents high VRAM/GPU heating spikes.
-        - threads='1:1:1' prevents CPU multi-core exhaustion.
-        - Embeds 300 DPI metadata.
+        Upscales a smaller image using Real-ESRGAN in Safe/Eco mode (4x),
+        then normalizes it to exact target_size (width, height) at 300 DPI.
         """
         cls.ensure_engine()
+        target_w, target_h = target_size
 
-        cmd = [
-            str(EXE_PATH),
-            "-i", str(input_path),
-            "-o", str(output_path),
-            "-m", str(MODELS_DIR),
-            "-n", model,
-            "-s", str(scale),
-            "-t", str(tile_size),
-            "-j", threads
-        ]
+        with Image.open(input_path) as src_img:
+            orig_fmt = src_img.format or "PNG"
 
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            raise RuntimeError(f"Ошибка AI апскейла файла {input_path.name}: {result.stderr or result.stdout}")
+        ai_temp_path = output_path.with_name(f".tmp_ai_{output_path.stem}.png")
+        try:
+            cmd = [
+                str(EXE_PATH),
+                "-i", str(input_path),
+                "-o", str(ai_temp_path),
+                "-m", str(MODELS_DIR),
+                "-n", model,
+                "-s", "4",
+                "-t", str(tile_size),
+                "-j", threads
+            ]
 
-        # Post-process with Pillow to ensure 300 DPI metadata is set
-        if output_path.exists():
-            with Image.open(output_path) as img:
-                img.load()
-                fmt = img.format or "PNG"
-                img.save(output_path, format=fmt, dpi=(300, 300))
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0 or not ai_temp_path.exists():
+                raise RuntimeError(f"Ошибка AI апскейла файла {input_path.name}: {result.stderr or result.stdout}")
+
+            # Normalize AI output to exact target dimensions and embed 300 DPI metadata
+            with Image.open(ai_temp_path) as ai_img:
+                ai_img.load()
+                if ai_img.size != (target_w, target_h):
+                    final_img = ai_img.resize((target_w, target_h), resample=Image.Resampling.LANCZOS)
+                else:
+                    final_img = ai_img
+
+                if orig_fmt.upper() in ("JPEG", "JPG") and final_img.mode in ("RGBA", "P"):
+                    final_img = final_img.convert("RGB")
+
+                final_img.save(output_path, format=orig_fmt, dpi=(300, 300))
+        finally:
+            if ai_temp_path.exists():
+                try:
+                    ai_temp_path.unlink()
+                except OSError:
+                    pass
 
     @classmethod
     def upscale_fast(
         cls,
         input_path: Path,
         output_path: Path,
-        scale: int = 4,
+        target_size: Tuple[int, int] = (2480, 3508),
     ) -> None:
         """
-        Ultra-fast Lanczos scaling with line-art sharpening:
+        Ultra-fast Lanczos normalization to exact target_size with line-art sharpening:
         - 0% GPU load, runs in milliseconds per image without any heating.
-        - High-quality Lanczos interpolation.
+        - High-quality Lanczos interpolation to exact target (width, height).
         - Subtle unsharp mask to keep coloring outlines crisp.
         - Sets 300 DPI metadata.
         """
+        target_w, target_h = target_size
         with Image.open(input_path) as img:
             img.load()
             fmt = img.format or "PNG"
             orig_mode = img.mode
 
-            target_w = int(img.width * scale)
-            target_h = int(img.height * scale)
-
-            # High quality Lanczos resize
             resized = img.resize((target_w, target_h), resample=Image.Resampling.LANCZOS)
 
-            # Sharpen outlines for coloring book drawings
             if orig_mode in ("RGB", "L"):
                 sharpened = resized.filter(ImageFilter.UnsharpMask(radius=1.2, percent=125, threshold=3))
             else:
@@ -137,29 +158,94 @@ class ImageUpscaler:
             sharpened.save(output_path, format=fmt, dpi=(300, 300))
 
     @classmethod
+    def normalize_image(
+        cls,
+        input_path: Path,
+        output_path: Path,
+        target_size: Tuple[int, int],
+        mode: str = "fast",
+        model: str = "realesrgan-x4plus-anime",
+        tile_size: int = 200
+    ) -> str:
+        """
+        Smart normalization of a single image to exact target_size (width, height):
+        - 'skipped': Already exact target_size (ensures 300 DPI metadata).
+        - 'downscaled': Larger than or equal to target_size on both axes -> fast Lanczos downscale to target_size.
+        - 'upscaled': Smaller than target_size -> upscales via 'ai' or 'fast' mode to exact target_size.
+        """
+        target_w, target_h = target_size
+        is_same_file = (input_path.resolve() == output_path.resolve())
+
+        with Image.open(input_path) as img:
+            orig_w, orig_h = img.size
+            fmt = img.format or "PNG"
+            dpi = img.info.get("dpi")
+
+            # 1. Already at exact target size
+            if (orig_w, orig_h) == (target_w, target_h):
+                has_300_dpi = bool(dpi and round(dpi[0]) == 300 and round(dpi[1]) == 300)
+                if is_same_file:
+                    if not has_300_dpi:
+                        img.load()
+                        temp_file = output_path.with_name(f".tmp_dpi_{output_path.name}")
+                        img.save(temp_file, format=fmt, dpi=(300, 300))
+                        os.replace(temp_file, output_path)
+                else:
+                    if has_300_dpi:
+                        shutil.copy2(input_path, output_path)
+                    else:
+                        img.load()
+                        img.save(output_path, format=fmt, dpi=(300, 300))
+                return "skipped"
+
+        # 2. Image is larger than target size (e.g. 4096x4096) -> downscale directly without AI
+        if orig_w >= target_w and orig_h >= target_h:
+            if is_same_file:
+                temp_file = output_path.with_name(f".tmp_norm_{output_path.name}")
+                cls.upscale_fast(input_path, temp_file, target_size=target_size)
+                os.replace(temp_file, output_path)
+            else:
+                cls.upscale_fast(input_path, output_path, target_size=target_size)
+            return "downscaled"
+
+        # 3. Image is smaller than target size -> upscale & normalize to target_size
+        if is_same_file:
+            temp_file = output_path.with_name(f".tmp_upscale_{output_path.name}")
+            if mode == "ai":
+                cls.upscale_ai(input_path, temp_file, target_size=target_size, model=model, tile_size=tile_size)
+            else:
+                cls.upscale_fast(input_path, temp_file, target_size=target_size)
+            os.replace(temp_file, output_path)
+        else:
+            if mode == "ai":
+                cls.upscale_ai(input_path, output_path, target_size=target_size, model=model, tile_size=tile_size)
+            else:
+                cls.upscale_fast(input_path, output_path, target_size=target_size)
+        return "upscaled"
+
+    @classmethod
     def upscale_folder(
         cls,
         input_dir: str,
         output_dir: Optional[str] = None,
-        mode: str = "ai",
-        scale: int = 4,
+        mode: str = "fast",
+        book_format: BookFormat = BookFormat.A4,
+        target_size: Optional[Tuple[int, int]] = None,
         model: str = "realesrgan-x4plus-anime",
         tile_size: int = 200,
         include_covers: bool = True,
         progress_callback: Optional[Callable[[int, int, str], None]] = None
-    ) -> List[str]:
+    ) -> Dict[str, Any]:
         """
-        Batch upscales images in input_dir.
-        mode: 'ai' (Real-ESRGAN in eco mode) or 'fast' (Lanczos Pillow, 0% load)
-        include_covers: If True, includes cover_* files. If False, skips cover_* files.
-        If output_dir is same as input_dir (or None), overwrites existing files safely.
+        Batch normalizes/upscales images in input_dir to the exact target format resolution (300 DPI):
+        - A4: 2480 x 3508 px
+        - Square (8.5x8.5 / 8x8): 2550 x 2550 px
         """
         in_path = Path(input_dir).resolve()
         if not in_path.exists() or not in_path.is_dir():
             raise FileNotFoundError(f"Каталог не найден: {in_path}")
 
-        if mode == "ai":
-            cls.ensure_engine()
+        resolved_target = target_size or cls.get_target_size(book_format)
 
         if not output_dir:
             out_path = in_path
@@ -167,7 +253,6 @@ class ImageUpscaler:
             out_path = Path(output_dir).resolve()
 
         out_path.mkdir(parents=True, exist_ok=True)
-        is_same_dir = (in_path == out_path)
 
         files = [
             f for f in in_path.iterdir()
@@ -179,31 +264,46 @@ class ImageUpscaler:
         files.sort(key=lambda f: natural_sort_key(f.name))
 
         if not files:
-            raise ValueError(f"В папке {in_path} не найдено подходящих изображений для апскейла")
+            raise ValueError(f"В папке {in_path} не найдено подходящих изображений для нормализации")
 
-        upscaled_files: List[str] = []
+        processed_files: List[str] = []
+        upscaled_count = 0
+        downscaled_count = 0
+        skipped_count = 0
         total = len(files)
 
         for idx, file_path in enumerate(files):
             num = idx + 1
             dest_file = out_path / file_path.name
 
-            if is_same_dir:
-                temp_file = dest_file.with_name(f".tmp_upscale_{dest_file.name}")
-                if mode == "ai":
-                    cls.upscale_ai(file_path, temp_file, scale=scale, model=model, tile_size=tile_size)
-                else:
-                    cls.upscale_fast(file_path, temp_file, scale=scale)
-                os.replace(temp_file, dest_file)
-            else:
-                if mode == "ai":
-                    cls.upscale_ai(file_path, dest_file, scale=scale, model=model, tile_size=tile_size)
-                else:
-                    cls.upscale_fast(file_path, dest_file, scale=scale)
+            action = cls.normalize_image(
+                input_path=file_path,
+                output_path=dest_file,
+                target_size=resolved_target,
+                mode=mode,
+                model=model,
+                tile_size=tile_size
+            )
 
-            upscaled_files.append(str(dest_file))
+            if action == "upscaled":
+                upscaled_count += 1
+            elif action == "downscaled":
+                downscaled_count += 1
+            else:
+                skipped_count += 1
+
+            processed_files.append(str(dest_file))
 
             if progress_callback:
                 progress_callback(num, total, file_path.name)
 
-        return upscaled_files
+        return {
+            "files": processed_files,
+            "total_files": total,
+            "upscaled_count": upscaled_count,
+            "downscaled_count": downscaled_count,
+            "skipped_count": skipped_count,
+            "target_width": resolved_target[0],
+            "target_height": resolved_target[1],
+            "format": book_format.value
+        }
