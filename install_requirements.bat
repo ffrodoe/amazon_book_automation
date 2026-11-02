@@ -11,13 +11,9 @@ if errorlevel 1 exit /b 1
 
 echo Using Python at: "%PYTHON_EXE%"
 "%PYTHON_EXE%" -m pip install --upgrade pip
+"%PYTHON_EXE%" -m pip install msvc-runtime
 "%PYTHON_EXE%" -m pip install -r requirements.txt
-if errorlevel 1 (
-    echo.
-    echo [ERROR] Failed to install dependencies from requirements.txt!
-    pause
-    exit /b 1
-)
+if errorlevel 1 echo [ERROR] Failed to install dependencies from requirements.txt! & pause & exit /b 1
 
 echo.
 echo ====================================================

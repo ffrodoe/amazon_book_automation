@@ -10,16 +10,8 @@ echo  KDP Coloring Book - Frame and Border Remover
 echo ========================================================
 
 set "INPUT_DIR=%~1"
-
-if "%INPUT_DIR%"=="" (
-    set /p "INPUT_DIR=Enter folder path containing images: "
-)
-
-if "%INPUT_DIR%"=="" (
-    echo [ERROR] No folder path specified!
-    pause
-    exit /b 1
-)
+if "%INPUT_DIR%"=="" set /p "INPUT_DIR=Enter folder path containing images: "
+if "%INPUT_DIR%"=="" echo [ERROR] No folder path specified! & pause & exit /b 1
 
 echo Processing folder: %INPUT_DIR%
 echo.

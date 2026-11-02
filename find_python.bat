@@ -1,59 +1,16 @@
 @echo off
 set "PYTHON_EXE="
 
-:: 1. Check standard per-user and system-wide Python 3 installations
-for %%P in (
-    "%LOCALAPPDATA%\Programs\Python\Python313\python.exe"
-    "%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
-    "%LOCALAPPDATA%\Programs\Python\Python311\python.exe"
-    "%LOCALAPPDATA%\Programs\Python\Python310\python.exe"
-    "%ProgramFiles%\Python313\python.exe"
-    "%ProgramFiles%\Python312\python.exe"
-    "%ProgramFiles%\Python311\python.exe"
-    "%ProgramFiles%\Python310\python.exe"
-) do (
-    if exist "%%~P" (
-        "%%~P" -c "import sys" >nul 2>nul
-        if not errorlevel 1 (
-            set "PYTHON_EXE=%%~P"
-            goto :found
-        )
-    )
-)
+for %%P in ("%LOCALAPPDATA%\Programs\Python\Python314\python.exe" "%LOCALAPPDATA%\Programs\Python\Python313\python.exe" "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" "%LOCALAPPDATA%\Programs\Python\Python311\python.exe" "%LOCALAPPDATA%\Programs\Python\Python310\python.exe" "%ProgramFiles%\Python314\python.exe" "%ProgramFiles%\Python313\python.exe" "%ProgramFiles%\Python312\python.exe" "%ProgramFiles%\Python311\python.exe" "%ProgramFiles%\Python310\python.exe") do if not defined PYTHON_EXE if exist "%%~P" set "PYTHON_EXE=%%~P"
 
-:: 2. Check 'python' in PATH (ignoring Windows Store stub in WindowsApps)
-python -c "import sys" >nul 2>nul
-if not errorlevel 1 (
-    set "PYTHON_EXE=python"
-    goto :found
-)
+if not defined PYTHON_EXE for /f "delims=" %%I in ('py -3 -c "import sys; print(sys.executable)" 2^>nul') do if /i "%%~xI"==".exe" if exist "%%~I" set "PYTHON_EXE=%%~I"
 
-:: 3. If --install flag was passed, install Python 3.12 via winget
-if /i "%~1"=="--install" (
-    echo [INFO] Real Python not found ^(only Windows Store stub or missing^).
-    echo [INFO] Installing Python 3.12 via winget...
-    winget install -e --id Python.Python.3.12 --scope user --accept-package-agreements --accept-source-agreements
-    if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" (
-        set "PYTHON_EXE=%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
-        goto :found
-    )
-    if exist "%ProgramFiles%\Python312\python.exe" (
-        set "PYTHON_EXE=%ProgramFiles%\Python312\python.exe"
-        goto :found
-    )
-)
+if not defined PYTHON_EXE for /f "delims=" %%I in ('python -c "import sys; print(sys.executable)" 2^>nul') do if /i "%%~xI"==".exe" if exist "%%~I" set "PYTHON_EXE=%%~I"
 
-echo.
-echo [ERROR] Real Python installation was not found!
-if /i "%~1"=="--install" (
-    echo Please install Python 3.12 manually from https://www.python.org/downloads/
-    echo ^(Make sure to check "Add python.exe to PATH" during installation^).
-) else (
-    echo Please run install_requirements.bat first.
-)
-pause
-exit /b 1
+if not defined PYTHON_EXE if /i "%~1"=="--install" echo [INFO] Installing Python 3.12 via winget... & winget install -e --id Python.Python.3.12 --scope user --accept-package-agreements --accept-source-agreements
 
-:found
+if not defined PYTHON_EXE if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" set "PYTHON_EXE=%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
+if not defined PYTHON_EXE if exist "%ProgramFiles%\Python312\python.exe" set "PYTHON_EXE=%ProgramFiles%\Python312\python.exe"
+
+if not defined PYTHON_EXE echo [ERROR] Python not found! Please run install_requirements.bat first. & pause & exit /b 1
 exit /b 0
-
