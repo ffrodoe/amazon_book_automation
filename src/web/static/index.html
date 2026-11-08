@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2.2">
+  <link rel="stylesheet" href="styles.css?v=2.3">
   <script>
     function switchTab(target) {
       if (window.switchTabHandler) {
@@ -100,6 +100,18 @@
                 <div class="format-info">
                   <div class="format-name">A4 Portrait</div>
                   <div class="format-dims">210 × 297 мм (300 DPI)</div>
+                </div>
+              </div>
+            </label>
+
+            <!-- 8.5 x 11 Portrait Option -->
+            <label class="format-card" data-format="8.5x11">
+              <input type="radio" name="bookFormat" value="8.5x11">
+              <div class="format-card-content">
+                <div class="ratio-box ratio-letter"></div>
+                <div class="format-info">
+                  <div class="format-name">8.5 × 11" Portrait</div>
+                  <div class="format-dims">215.9 × 279.4 мм (300 DPI)</div>
                 </div>
               </div>
             </label>
@@ -882,7 +894,7 @@
 
   </div>
 
-  <script src="app.js?v=2.2"></script>
+  <script src="app.js?v=2.3"></script>
 </body>
 </html>
 

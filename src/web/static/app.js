@@ -431,9 +431,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const selected = document.querySelector('input[name="upscaleMode"]:checked')?.value || 'fast';
     const format = getSelectedFormat();
     if (upscaleTargetBadge) {
-      upscaleTargetBadge.textContent = format === 'a4'
-        ? '2480 × 3508 px (A4 • 300 DPI)'
-        : '2550 × 2550 px (Square • 300 DPI)';
+      if (format === 'a4') {
+        upscaleTargetBadge.textContent = '2480 × 3508 px (A4 • 300 DPI)';
+      } else if (format === '8.5x11') {
+        upscaleTargetBadge.textContent = '2550 × 3300 px (8.5×11" • 300 DPI)';
+      } else {
+        upscaleTargetBadge.textContent = '2550 × 2550 px (Square • 300 DPI)';
+      }
     }
     if (chipUpscaleFast) chipUpscaleFast.classList.toggle('active', selected === 'fast');
     if (chipUpscaleAi) chipUpscaleAi.classList.toggle('active', selected === 'ai');
@@ -952,7 +956,8 @@ document.addEventListener('DOMContentLoaded', () => {
       // Auto-select template matching book format if none selected yet
       if (!selectedAplusTemplate && aplusTemplates.length > 0) {
         const currentFmt = getSelectedFormat();
-        const match = aplusTemplates.find(t => t.format === currentFmt) || aplusTemplates[0];
+        const matchFmt = currentFmt === '8.5x11' ? 'a4' : currentFmt;
+        const match = aplusTemplates.find(t => t.format === currentFmt || t.format === matchFmt) || aplusTemplates[0];
         selectAplusTemplate(match);
       }
     } catch (err) {

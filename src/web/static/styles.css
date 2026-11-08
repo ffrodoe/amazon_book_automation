@@ -1878,3 +1878,23 @@ body {
 }
 
 
+/* 3-Format Grid Support (A4, 8.5x11, 8.5x8.5) */
+.project-bar-grid {
+  grid-template-columns: 1fr 680px;
+}
+
+@media (max-width: 1200px) {
+  .project-bar-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.format-cards-compact {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.format-cards-compact .ratio-letter {
+  width: 22px;
+  height: 26px;
+}

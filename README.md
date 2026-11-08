@@ -60,6 +60,7 @@ python crop_borders.py -i "reference/FarmAdventures"
 | Формат | Размеры (мм / дюймы) | Точки PDF (72 pt) | Разрешение при 300 DPI |
 |---|---|---|---|
 | **A4 Portrait** | 210 × 297 мм (8.27 × 11.69") | 595.28 × 841.89 pt | 2480 × 3508 px |
+| **8.5 × 11" Portrait** | 215.9 × 279.4 мм (8.5 × 11") | 612.00 × 792.00 pt | 2550 × 3300 px |
 | **8.5 × 8.5" Square** | 215.9 × 215.9 мм (8.5 × 8.5") | 612.00 × 612.00 pt | 2550 × 2550 px |
 
 ---
@@ -70,4 +71,3 @@ python crop_borders.py -i "reference/FarmAdventures"
 install_requirements.bat
 ```
 Скрипт автоматически установит зависимости из `requirements.txt`.
-

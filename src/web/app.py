@@ -19,7 +19,8 @@ from src.config import (
     FORMAT_SPECS,
     DEFAULT_INTRO_COUNT,
     DEFAULT_BRIGHTNESS_OFFSET,
-    DEFAULT_LOGO_PATH
+    DEFAULT_LOGO_PATH,
+    parse_book_format
 )
 from src.core.image_processor import ImageProcessor
 from src.core.pdf_builder import PDFBuilder
@@ -178,7 +179,7 @@ def get_formats():
 @app.get("/api/scan")
 def scan_directory(
     path: str = Query(..., description="Path to folder containing coloring images"),
-    format: str = Query("a4", description="Book format (a4 or 8.5x8.5)"),
+    format: str = Query("a4", description="Book format (a4, 8.5x11, or 8.5x8.5)"),
     intro_count: int = Query(DEFAULT_INTRO_COUNT, description="Intro pages count")
 ):
     """Scans image folder and returns the book layout plan for live preview."""
@@ -189,7 +190,7 @@ def scan_directory(
     if not target_path.exists() or not target_path.is_dir():
         raise HTTPException(status_code=404, detail=f"Directory does not exist: {target_path}")
 
-    book_format = BookFormat.A4 if format == "a4" else BookFormat.SQUARE_8_5
+    book_format = parse_book_format(format)
 
     try:
         plan = ImageProcessor.build_book_plan(
@@ -246,7 +247,7 @@ def build_pdf(req: BuildRequest):
     if not target_path.exists():
         raise HTTPException(status_code=404, detail=f"Directory not found: {target_path}")
 
-    book_format = BookFormat.A4 if req.format == "a4" else BookFormat.SQUARE_8_5
+    book_format = parse_book_format(req.format)
 
     try:
         plan = ImageProcessor.build_book_plan(
@@ -303,7 +304,7 @@ def get_brand_logo():
 @app.get("/api/cover-details")
 def get_cover_details(
     folder_path: str = Query(..., description="Path to book folder"),
-    format: str = Query("a4", description="Book format (a4 or 8.5x8.5)")
+    format: str = Query("a4", description="Book format (a4, 8.5x11, or 8.5x8.5)")
 ):
     """
     Checks for cover_front and cover_back in the directory,
@@ -317,7 +318,7 @@ def get_cover_details(
     if not target_path.exists() or not target_path.is_dir():
         raise HTTPException(status_code=404, detail=f"Directory not found: {target_path}")
 
-    book_format = BookFormat.A4 if format == "a4" else BookFormat.SQUARE_8_5
+    book_format = parse_book_format(format)
 
     try:
         cover_files = ImageProcessor.find_cover_files(str(target_path))
@@ -370,11 +371,11 @@ def get_cover_details(
 
 @app.get("/api/cover-layout")
 def get_cover_layout(
-    format: str = Query("a4", description="Book format (a4 or 8.5x8.5)"),
+    format: str = Query("a4", description="Book format (a4, 8.5x11, or 8.5x8.5)"),
     spine_width_mm: float = Query(4.6, description="Spine width in mm")
 ):
     """Returns the unified layout coordinates and percentage metrics for UI preview."""
-    book_format = BookFormat.A4 if format == "a4" else BookFormat.SQUARE_8_5
+    book_format = parse_book_format(format)
     return CoverBuilder.calculate_cover_geometry(book_format, spine_width_mm)
 
 
@@ -388,7 +389,7 @@ def build_cover(req: BuildCoverRequest):
     if not target_path.exists():
         raise HTTPException(status_code=404, detail=f"Directory not found: {target_path}")
 
-    book_format = BookFormat.A4 if req.format == "a4" else BookFormat.SQUARE_8_5
+    book_format = parse_book_format(req.format)
 
     # Auto-detect covers if not explicitly passed
     front_p = req.front_cover_path
@@ -584,7 +585,7 @@ def upscale_images(req: UpscaleImagesRequest):
     if not target_path.exists() or not target_path.is_dir():
         raise HTTPException(status_code=404, detail=f"Directory not found: {target_path}")
 
-    book_format = BookFormat.A4 if req.format == "a4" else BookFormat.SQUARE_8_5
+    book_format = parse_book_format(req.format)
 
     try:
         if req.custom_output_dir:

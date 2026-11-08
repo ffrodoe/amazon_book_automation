@@ -6,11 +6,10 @@ from pathlib import Path
 # Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import BookFormat, FORMAT_SPECS, DEFAULT_INTRO_COUNT
+from src.config import BookFormat, FORMAT_SPECS, DEFAULT_INTRO_COUNT, parse_book_format
 from src.core.image_processor import ImageProcessor
 from src.core.pdf_builder import PDFBuilder
 from src.core.image_cleaner import ImageCleaner
-
 
 
 def main():
@@ -20,6 +19,7 @@ def main():
         epilog="""
 Examples:
   python -m src.cli -i reference/FarmAdventures -f a4
+  python -m src.cli -i "C:/path/to/images" -f 8.5x11 -o "output/MyBook.pdf"
   python -m src.cli -i "C:/path/to/images" -f 8.5x8.5 -o "output/MyBook.pdf"
         """
     )
@@ -30,9 +30,9 @@ Examples:
     )
     parser.add_argument(
         "-f", "--format",
-        choices=["a4", "8.5x8.5"],
+        choices=["a4", "8.5x11", "8.5x8.5"],
         default="a4",
-        help="Target book format: 'a4' (default) or '8.5x8.5'"
+        help="Target book format: 'a4' (default), '8.5x11', or '8.5x8.5'"
     )
     parser.add_argument(
         "--intro-count",
@@ -59,13 +59,12 @@ Examples:
 
     args = parser.parse_args()
 
-
     input_path = Path(args.input)
     if not input_path.exists():
         print(f"[ERROR] Input directory does not exist: {input_path}")
         sys.exit(1)
 
-    book_format = BookFormat.A4 if args.format == "a4" else BookFormat.SQUARE_8_5
+    book_format = parse_book_format(args.format)
     spec = FORMAT_SPECS[book_format]
 
     print("=" * 60)

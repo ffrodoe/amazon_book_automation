@@ -67,7 +67,7 @@ class CoverBuilder:
         aspect_ratio = trim_w / trim_h
         thumb_ratio = COVER_LAYOUT_SPEC["thumb_width_ratio"]  # 0.29 (+5% size)
         card_w = trim_w * thumb_ratio
-        if book_format == BookFormat.A4:
+        if book_format in (BookFormat.A4, BookFormat.LETTER_8_5_X_11):
             card_h = card_w / aspect_ratio
         else:
             card_h = card_w * 1.25

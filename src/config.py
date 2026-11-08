@@ -6,7 +6,18 @@ from typing import Tuple
 
 class BookFormat(str, Enum):
     A4 = "a4"
+    LETTER_8_5_X_11 = "8.5x11"
     SQUARE_8_5 = "8.5x8.5"
+
+
+def parse_book_format(value: str) -> BookFormat:
+    """Safely parses format string ('a4', '8.5x11', '8.5x8.5') into BookFormat enum."""
+    val = (value or "").strip().lower()
+    if val == BookFormat.LETTER_8_5_X_11.value:
+        return BookFormat.LETTER_8_5_X_11
+    if val == BookFormat.SQUARE_8_5.value:
+        return BookFormat.SQUARE_8_5
+    return BookFormat.A4
 
 
 @dataclass(frozen=True)
@@ -32,6 +43,14 @@ FORMAT_SPECS = {
         width_px_300dpi=2480, # 210mm @ 300 DPI
         height_px_300dpi=3508,# 297mm @ 300 DPI
         description="Standard A4 (210 x 297 mm / 8.27 x 11.69 in)"
+    ),
+    BookFormat.LETTER_8_5_X_11: FormatSpec(
+        name="8.5x11",
+        width_pt=612.0,       # 8.5 * 72 pt
+        height_pt=792.0,      # 11.0 * 72 pt
+        width_px_300dpi=2550, # 8.5 * 300 px
+        height_px_300dpi=3300,# 11.0 * 300 px
+        description="US Letter Portrait (8.5 x 11 in / 215.9 x 279.4 mm)"
     ),
     BookFormat.SQUARE_8_5: FormatSpec(
         name="8.5x8.5",
@@ -80,8 +99,7 @@ COVER_LAYOUT_SPEC = {
     # Brand Logo on Back Cover
     "logo_width_ratio": 0.15,          # logo_w = trim_w * 0.44
     "logo_bottom_ratio": 0.05,         # 4% from bottom trim
-    "logo_left_ratio": 0.1  
-    ,           # 7% from left trim
+    "logo_left_ratio": 0.1,            # 7% from left trim
 }
 
 # Default Assets
@@ -92,4 +110,3 @@ DEFAULT_LOGO_PATH = ROOT_DIR / "brand_logo.png"
 def mm_to_pt(mm: float) -> float:
     """Convert millimeters to PDF typographic points (72 points per inch, 25.4 mm/inch)."""
     return mm * 72.0 / 25.4
-
