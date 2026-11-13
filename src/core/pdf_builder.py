@@ -78,8 +78,8 @@ class PDFBuilder:
                     height_pt - bottom_m
                 )
 
-                if page_num in (1, 2):
-                    # Pages 1 & 2: margins applied without frame
+                if page_num in (1, 2, 3):
+                    # Pages 1,2 & 3: margins applied without frame
                     pdf_page.insert_image(
                         outer_rect,
                         filename=page_plan.image_path,
