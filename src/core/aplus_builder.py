@@ -7,6 +7,7 @@ from PIL import Image
 import numpy as np
 
 from src.config import ROOT_DIR
+from src.core.file_utils import get_path_lock
 
 DEFAULT_TEMPLATES_DIR = Path("D:/FairytaleCompass/A+ content samples banners")
 
@@ -229,7 +230,8 @@ class APlusBuilder:
         if not template_file.exists():
             raise FileNotFoundError(f"Template not found: {template_path}")
 
-        template_img = Image.open(template_file).convert("RGBA")
+        with Image.open(template_file) as raw_template:
+            template_img = raw_template.convert("RGBA")
         slots = cls.get_template_slots(str(template_file))
 
         for slot, img_path in zip(slots, image_paths):
@@ -240,8 +242,10 @@ class APlusBuilder:
                 continue
 
             try:
-                with Image.open(path_obj) as art:
-                    art = art.convert("RGBA")
+                with get_path_lock(path_obj):
+                    with Image.open(path_obj) as raw_art:
+                        art = raw_art.convert("RGBA")
+                with art:
                     
                     sx = slot["x"] + padding
                     sy = slot["y"] + padding

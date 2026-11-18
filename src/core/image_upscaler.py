@@ -10,9 +10,23 @@ from PIL import Image, ImageFilter
 try:
     from src.config import BookFormat, FORMAT_SPECS
     from src.core.image_processor import natural_sort_key
+    from src.core.file_utils import (
+        atomic_replace,
+        is_hidden_or_temp_file,
+        lock_directories,
+        make_temp_path,
+        safe_unlink,
+    )
 except ImportError:
     from ..config import BookFormat, FORMAT_SPECS
     from .image_processor import natural_sort_key
+    from .file_utils import (
+        atomic_replace,
+        is_hidden_or_temp_file,
+        lock_directories,
+        make_temp_path,
+        safe_unlink,
+    )
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
@@ -92,7 +106,7 @@ class ImageUpscaler:
         with Image.open(input_path) as src_img:
             orig_fmt = src_img.format or "PNG"
 
-        ai_temp_path = output_path.with_name(f".tmp_ai_{output_path.stem}.png")
+        ai_temp_path = make_temp_path(output_path.with_suffix(".png"), prefix=".tmp_ai_")
         try:
             cmd = [
                 str(EXE_PATH),
@@ -122,11 +136,7 @@ class ImageUpscaler:
 
                 final_img.save(output_path, format=orig_fmt, dpi=(300, 300))
         finally:
-            if ai_temp_path.exists():
-                try:
-                    ai_temp_path.unlink()
-                except OSError:
-                    pass
+            safe_unlink(ai_temp_path)
 
     @classmethod
     def upscale_fast(
@@ -176,51 +186,74 @@ class ImageUpscaler:
         target_w, target_h = target_size
         is_same_file = (input_path.resolve() == output_path.resolve())
 
+        img_for_dpi_fix: Optional[Image.Image] = None
         with Image.open(input_path) as img:
             orig_w, orig_h = img.size
             fmt = img.format or "PNG"
             dpi = img.info.get("dpi")
+            has_300_dpi = bool(dpi and round(dpi[0]) == 300 and round(dpi[1]) == 300)
+            if (orig_w, orig_h) == (target_w, target_h) and not has_300_dpi:
+                img.load()
+                img_for_dpi_fix = img.copy()
 
-            # 1. Already at exact target size
-            if (orig_w, orig_h) == (target_w, target_h):
-                has_300_dpi = bool(dpi and round(dpi[0]) == 300 and round(dpi[1]) == 300)
-                if is_same_file:
-                    if not has_300_dpi:
-                        img.load()
-                        temp_file = output_path.with_name(f".tmp_dpi_{output_path.name}")
-                        img.save(temp_file, format=fmt, dpi=(300, 300))
-                        os.replace(temp_file, output_path)
-                else:
-                    if has_300_dpi:
-                        shutil.copy2(input_path, output_path)
-                    else:
-                        img.load()
-                        img.save(output_path, format=fmt, dpi=(300, 300))
-                return "skipped"
+        # File handle on input_path is now guaranteed closed before any replace on Windows.
+
+        # 1. Already at exact target size
+        if (orig_w, orig_h) == (target_w, target_h):
+            if is_same_file:
+                if img_for_dpi_fix is not None:
+                    temp_file = make_temp_path(output_path, prefix=".tmp_dpi_")
+                    try:
+                        img_for_dpi_fix.save(temp_file, format=fmt, dpi=(300, 300))
+                    except Exception:
+                        safe_unlink(temp_file)
+                        raise
+                    finally:
+                        img_for_dpi_fix.close()
+                    atomic_replace(temp_file, output_path)
+            else:
+                if has_300_dpi:
+                    temp_file = make_temp_path(output_path, prefix=".tmp_copy_")
+                    try:
+                        shutil.copy2(input_path, temp_file)
+                    except Exception:
+                        safe_unlink(temp_file)
+                        raise
+                    atomic_replace(temp_file, output_path)
+                elif img_for_dpi_fix is not None:
+                    temp_file = make_temp_path(output_path, prefix=".tmp_dpi_")
+                    try:
+                        img_for_dpi_fix.save(temp_file, format=fmt, dpi=(300, 300))
+                    except Exception:
+                        safe_unlink(temp_file)
+                        raise
+                    finally:
+                        img_for_dpi_fix.close()
+                    atomic_replace(temp_file, output_path)
+            return "skipped"
 
         # 2. Image is larger than target size (e.g. 4096x4096) -> downscale directly without AI
         if orig_w >= target_w and orig_h >= target_h:
-            if is_same_file:
-                temp_file = output_path.with_name(f".tmp_norm_{output_path.name}")
+            temp_file = make_temp_path(output_path, prefix=".tmp_norm_")
+            try:
                 cls.upscale_fast(input_path, temp_file, target_size=target_size)
-                os.replace(temp_file, output_path)
-            else:
-                cls.upscale_fast(input_path, output_path, target_size=target_size)
+            except Exception:
+                safe_unlink(temp_file)
+                raise
+            atomic_replace(temp_file, output_path)
             return "downscaled"
 
         # 3. Image is smaller than target size -> upscale & normalize to target_size
-        if is_same_file:
-            temp_file = output_path.with_name(f".tmp_upscale_{output_path.name}")
+        temp_file = make_temp_path(output_path, prefix=".tmp_upscale_")
+        try:
             if mode == "ai":
                 cls.upscale_ai(input_path, temp_file, target_size=target_size, model=model, tile_size=tile_size)
             else:
                 cls.upscale_fast(input_path, temp_file, target_size=target_size)
-            os.replace(temp_file, output_path)
-        else:
-            if mode == "ai":
-                cls.upscale_ai(input_path, output_path, target_size=target_size, model=model, tile_size=tile_size)
-            else:
-                cls.upscale_fast(input_path, output_path, target_size=target_size)
+        except Exception:
+            safe_unlink(temp_file)
+            raise
+        atomic_replace(temp_file, output_path)
         return "upscaled"
 
     @classmethod
@@ -254,56 +287,61 @@ class ImageUpscaler:
 
         out_path.mkdir(parents=True, exist_ok=True)
 
-        files = [
-            f for f in in_path.iterdir()
-            if f.is_file() and f.suffix.lower() in cls.SUPPORTED_EXTENSIONS
-        ]
-        if not include_covers:
-            files = [f for f in files if not f.stem.lower().startswith("cover_")]
+        with lock_directories(in_path, out_path):
+            files = [
+                f for f in in_path.iterdir()
+                if (
+                    f.is_file()
+                    and not is_hidden_or_temp_file(f)
+                    and f.suffix.lower() in cls.SUPPORTED_EXTENSIONS
+                )
+            ]
+            if not include_covers:
+                files = [f for f in files if not f.stem.lower().startswith("cover_")]
 
-        files.sort(key=lambda f: natural_sort_key(f.name))
+            files.sort(key=lambda f: natural_sort_key(f.name))
 
-        if not files:
-            raise ValueError(f"В папке {in_path} не найдено подходящих изображений для нормализации")
+            if not files:
+                raise ValueError(f"В папке {in_path} не найдено подходящих изображений для нормализации")
 
-        processed_files: List[str] = []
-        upscaled_count = 0
-        downscaled_count = 0
-        skipped_count = 0
-        total = len(files)
+            processed_files: List[str] = []
+            upscaled_count = 0
+            downscaled_count = 0
+            skipped_count = 0
+            total = len(files)
 
-        for idx, file_path in enumerate(files):
-            num = idx + 1
-            dest_file = out_path / file_path.name
+            for idx, file_path in enumerate(files):
+                num = idx + 1
+                dest_file = out_path / file_path.name
 
-            action = cls.normalize_image(
-                input_path=file_path,
-                output_path=dest_file,
-                target_size=resolved_target,
-                mode=mode,
-                model=model,
-                tile_size=tile_size
-            )
+                action = cls.normalize_image(
+                    input_path=file_path,
+                    output_path=dest_file,
+                    target_size=resolved_target,
+                    mode=mode,
+                    model=model,
+                    tile_size=tile_size
+                )
 
-            if action == "upscaled":
-                upscaled_count += 1
-            elif action == "downscaled":
-                downscaled_count += 1
-            else:
-                skipped_count += 1
+                if action == "upscaled":
+                    upscaled_count += 1
+                elif action == "downscaled":
+                    downscaled_count += 1
+                else:
+                    skipped_count += 1
 
-            processed_files.append(str(dest_file))
+                processed_files.append(str(dest_file))
 
-            if progress_callback:
-                progress_callback(num, total, file_path.name)
+                if progress_callback:
+                    progress_callback(num, total, file_path.name)
 
-        return {
-            "files": processed_files,
-            "total_files": total,
-            "upscaled_count": upscaled_count,
-            "downscaled_count": downscaled_count,
-            "skipped_count": skipped_count,
-            "target_width": resolved_target[0],
-            "target_height": resolved_target[1],
-            "format": book_format.value
-        }
+            return {
+                "files": processed_files,
+                "total_files": total,
+                "upscaled_count": upscaled_count,
+                "downscaled_count": downscaled_count,
+                "skipped_count": skipped_count,
+                "target_width": resolved_target[0],
+                "target_height": resolved_target[1],
+                "format": book_format.value
+            }

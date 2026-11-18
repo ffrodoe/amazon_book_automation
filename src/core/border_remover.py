@@ -7,6 +7,13 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from src.core.image_processor import natural_sort_key
+from src.core.file_utils import (
+    atomic_replace,
+    is_hidden_or_temp_file,
+    lock_directories,
+    make_temp_path,
+    safe_unlink,
+)
 
 
 @dataclass
@@ -139,6 +146,7 @@ class BorderRemover:
             with Image.open(input_path) as img:
                 img.load()
                 orig_size = img.size
+                fmt = img.format or "PNG"
                 dpi = img.info.get("dpi")
                 crop_box = cls.detect_crop_box(
                     img,
@@ -152,6 +160,7 @@ class BorderRemover:
                     draw = ImageDraw.Draw(debug_img)
                     draw.rectangle(crop_box, outline="red", width=max(4, int(orig_size[0] / 600)))
                     debug_img.save(debug_path)
+                    debug_img.close()
 
                 if crop_box is not None:
                     processed = cls.crop_and_resize(img, crop_box)
@@ -161,19 +170,19 @@ class BorderRemover:
             # File is now closed, safe for atomic replace on Windows
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
-            if crop_box is not None:
-                if is_same_file:
-                    temp_file = output_path.with_name(f".tmp_{output_path.name}")
+            if crop_box is not None and processed is not None:
+                temp_file = make_temp_path(output_path, prefix=".tmp_crop_")
+                try:
                     if dpi:
-                        processed.save(temp_file, dpi=dpi)
+                        processed.save(temp_file, format=fmt, dpi=dpi)
                     else:
-                        processed.save(temp_file)
-                    os.replace(temp_file, output_path)
-                else:
-                    if dpi:
-                        processed.save(output_path, dpi=dpi)
-                    else:
-                        processed.save(output_path)
+                        processed.save(temp_file, format=fmt)
+                except Exception:
+                    safe_unlink(temp_file)
+                    raise
+                finally:
+                    processed.close()
+                atomic_replace(temp_file, output_path)
 
                 return ImageProcessResult(
                     filename=input_path.name,
@@ -186,7 +195,13 @@ class BorderRemover:
             else:
                 # No border detected
                 if not is_same_file:
-                    shutil.copy2(input_path, output_path)
+                    temp_file = make_temp_path(output_path, prefix=".tmp_copy_")
+                    try:
+                        shutil.copy2(input_path, temp_file)
+                    except Exception:
+                        safe_unlink(temp_file)
+                        raise
+                    atomic_replace(temp_file, output_path)
                 return ImageProcessResult(
                     filename=input_path.name,
                     original_size=orig_size,
@@ -228,66 +243,78 @@ class BorderRemover:
         output_dir.mkdir(parents=True, exist_ok=True)
         debug_dir = (output_dir / "debug") if debug else None
 
-        files = [
-            f for f in input_dir.iterdir()
-            if f.is_file() and f.suffix.lower() in cls.SUPPORTED_EXTENSIONS and not f.stem.lower().startswith("cover_")
-        ]
-        files.sort(key=lambda f: natural_sort_key(f.name))
+        with lock_directories(input_dir, output_dir):
+            files = [
+                f for f in input_dir.iterdir()
+                if (
+                    f.is_file()
+                    and not is_hidden_or_temp_file(f)
+                    and f.suffix.lower() in cls.SUPPORTED_EXTENSIONS
+                    and not f.stem.lower().startswith("cover_")
+                )
+            ]
+            files.sort(key=lambda f: natural_sort_key(f.name))
 
-        if not files:
-            raise ValueError(f"No supported image files found in {input_dir}")
+            if not files:
+                raise ValueError(f"No supported image files found in {input_dir}")
 
-        total = len(files)
-        results: List[ImageProcessResult] = []
-        cropped_count = 0
-        copied_count = 0
-        error_count = 0
+            total = len(files)
+            results: List[ImageProcessResult] = []
+            cropped_count = 0
+            copied_count = 0
+            error_count = 0
 
-        for idx, file_path in enumerate(files):
-            out_file = output_dir / file_path.name
-            dbg_file = (debug_dir / file_path.name) if debug_dir else None
+            for idx, file_path in enumerate(files):
+                out_file = output_dir / file_path.name
+                dbg_file = (debug_dir / file_path.name) if debug_dir else None
 
-            if progress_callback:
-                progress_callback(idx + 1, total, f"Processing {file_path.name}...")
+                if progress_callback:
+                    progress_callback(idx + 1, total, f"Processing {file_path.name}...")
 
-            if idx < skip_count:
-                # Skip initial images (e.g. title/copyright pages)
-                is_same_file = file_path.resolve() == out_file.resolve()
-                if not is_same_file:
-                    shutil.copy2(file_path, out_file)
-                results.append(ImageProcessResult(
-                    filename=file_path.name,
-                    original_size=(0, 0),
-                    has_border=False,
-                    crop_box=None,
-                    output_path=str(out_file.resolve()),
-                    debug_path=None
-                ))
-                copied_count += 1
-                continue
+                if idx < skip_count:
+                    # Skip initial images (e.g. title/copyright pages)
+                    is_same_file = file_path.resolve() == out_file.resolve()
+                    if not is_same_file:
+                        temp_file = make_temp_path(out_file, prefix=".tmp_copy_")
+                        try:
+                            shutil.copy2(file_path, temp_file)
+                        except Exception:
+                            safe_unlink(temp_file)
+                            raise
+                        atomic_replace(temp_file, out_file)
+                    results.append(ImageProcessResult(
+                        filename=file_path.name,
+                        original_size=(0, 0),
+                        has_border=False,
+                        crop_box=None,
+                        output_path=str(out_file.resolve()),
+                        debug_path=None
+                    ))
+                    copied_count += 1
+                    continue
 
-            res = cls.process_image(
-                input_path=file_path,
-                output_path=out_file,
-                debug_path=dbg_file,
-                density_thresh=density_thresh,
-                safety_margin=safety_margin
-            )
-            results.append(res)
+                res = cls.process_image(
+                    input_path=file_path,
+                    output_path=out_file,
+                    debug_path=dbg_file,
+                    density_thresh=density_thresh,
+                    safety_margin=safety_margin
+                )
+                results.append(res)
 
-            if res.error:
-                error_count += 1
-            elif res.has_border:
-                cropped_count += 1
-            else:
-                copied_count += 1
+                if res.error:
+                    error_count += 1
+                elif res.has_border:
+                    cropped_count += 1
+                else:
+                    copied_count += 1
 
-        return {
-            "input_dir": str(input_dir.resolve()),
-            "output_dir": str(output_dir.resolve()),
-            "total_files": total,
-            "cropped_count": cropped_count,
-            "copied_count": copied_count,
-            "error_count": error_count,
-            "results": results
-        }
+            return {
+                "input_dir": str(input_dir.resolve()),
+                "output_dir": str(output_dir.resolve()),
+                "total_files": total,
+                "cropped_count": cropped_count,
+                "copied_count": copied_count,
+                "error_count": error_count,
+                "results": results
+            }

@@ -352,12 +352,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Prevent concurrent batch operations on the same folder from fighting over files
+  let isFolderProcessing = false;
+  function setFolderToolsBusy(busy) {
+    isFolderProcessing = busy;
+    [btnCropBorders, btnCleanBackground, btnUpscaleImages, btnBuild, btnScan, btnBrowse].forEach(btn => {
+      if (btn) btn.disabled = busy;
+    });
+  }
+
   // Crop borders
   btnCropBorders.addEventListener('click', async () => {
+    if (isFolderProcessing) return;
     const folder = inputFolder.value.trim();
     if (!folder) return alert('Сначала укажите папку книги');
 
-    btnCropBorders.disabled = true;
+    setFolderToolsBusy(true);
     btnCropText.textContent = 'Обработка и обрезка рамок...';
     cropStatus.classList.add('hidden');
 
@@ -383,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       alert(`Ошибка: ${err.message}`);
     } finally {
-      btnCropBorders.disabled = false;
+      setFolderToolsBusy(false);
       btnCropText.textContent = 'Удалить рамки с картинок';
     }
   });
@@ -394,10 +404,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   btnCleanBackground.addEventListener('click', async () => {
+    if (isFolderProcessing) return;
     const folder = inputFolder.value.trim();
     if (!folder) return alert('Сначала укажите папку книги');
 
-    btnCleanBackground.disabled = true;
+    setFolderToolsBusy(true);
     btnCleanText.textContent = 'Отбеливание фона...';
     cleanStatus.classList.add('hidden');
 
@@ -421,7 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       alert(`Ошибка: ${err.message}`);
     } finally {
-      btnCleanBackground.disabled = false;
+      setFolderToolsBusy(false);
       btnCleanText.textContent = 'Очистить фон картинок';
     }
   });
@@ -467,13 +478,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Image Normalization & Upscaling (300 DPI)
   btnUpscaleImages.addEventListener('click', async () => {
+    if (isFolderProcessing) return;
     const folder = inputFolder.value.trim();
     if (!folder) return alert('Сначала укажите папку книги');
 
     const mode = document.querySelector('input[name="upscaleMode"]:checked')?.value || 'fast';
     const format = getSelectedFormat();
 
-    btnUpscaleImages.disabled = true;
+    setFolderToolsBusy(true);
     btnUpscaleText.textContent = mode === 'ai' 
       ? 'AI нормализация до эталона (Eco)...' 
       : 'Нормализация разрешения (Lanczos)...';
@@ -507,17 +519,18 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       alert(`Ошибка апскейла: ${err.message}`);
     } finally {
-      btnUpscaleImages.disabled = false;
+      setFolderToolsBusy(false);
       updateUpscaleModeUI();
     }
   });
 
   // Build Interior PDF
   btnBuild.addEventListener('click', async () => {
+    if (isFolderProcessing) return;
     const folder = inputFolder.value.trim();
     if (!folder) return alert('Укажите папку книги');
 
-    btnBuild.disabled = true;
+    setFolderToolsBusy(true);
     btnBuildText.textContent = 'Сборка Interior PDF...';
 
     try {
@@ -543,7 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       alert(`Ошибка: ${err.message}`);
     } finally {
-      btnBuild.disabled = false;
+      setFolderToolsBusy(false);
       btnBuildText.textContent = 'Собрать Interior PDF для Amazon KDP';
     }
   });

@@ -3,6 +3,13 @@ from typing import Callable, List, Optional
 from PIL import Image
 
 from src.core.image_processor import natural_sort_key
+from src.core.file_utils import (
+    atomic_replace,
+    is_hidden_or_temp_file,
+    lock_directories,
+    make_temp_path,
+    safe_unlink,
+)
 
 
 class ImageCleaner:
@@ -65,47 +72,50 @@ class ImageCleaner:
 
         out_path.mkdir(parents=True, exist_ok=True)
 
-        files = [
-            f for f in in_path.iterdir()
-            if f.is_file() and f.suffix.lower() in cls.SUPPORTED_EXTENSIONS and not f.stem.lower().startswith("cover_")
-        ]
-        files.sort(key=lambda f: natural_sort_key(f.name))
+        with lock_directories(in_path, out_path):
+            files = [
+                f for f in in_path.iterdir()
+                if (
+                    f.is_file()
+                    and not is_hidden_or_temp_file(f)
+                    and f.suffix.lower() in cls.SUPPORTED_EXTENSIONS
+                    and not f.stem.lower().startswith("cover_")
+                )
+            ]
+            files.sort(key=lambda f: natural_sort_key(f.name))
 
-        if not files:
-            raise ValueError(f"No images found in {in_path}")
+            if not files:
+                raise ValueError(f"No images found in {in_path}")
 
-        cleaned_files: List[str] = []
-        total = len(files)
+            cleaned_files: List[str] = []
+            total = len(files)
 
-        import os
-        is_same_dir = (in_path.resolve() == out_path.resolve())
+            for idx, file_path in enumerate(files):
+                num = idx + 1
+                dest_file = out_path / file_path.name
 
-        for idx, file_path in enumerate(files):
-            num = idx + 1
-            dest_file = out_path / file_path.name
+                with Image.open(file_path) as img:
+                    img.load()
+                    fmt = img.format or "PNG"
+                    dpi = img.info.get("dpi")
+                    cleaned_img = cls.clean_image(img, brightness_offset=brightness_offset)
 
-            with Image.open(file_path) as img:
-                img.load()
-                fmt = img.format or "PNG"
-                dpi = img.info.get("dpi")
-                cleaned_img = cls.clean_image(img, brightness_offset=brightness_offset)
+                temp_file = make_temp_path(dest_file, prefix=".tmp_clean_")
+                try:
+                    if dpi:
+                        cleaned_img.save(temp_file, format=fmt, dpi=dpi)
+                    else:
+                        cleaned_img.save(temp_file, format=fmt)
+                except Exception:
+                    safe_unlink(temp_file)
+                    raise
+                finally:
+                    cleaned_img.close()
 
-            if is_same_dir:
-                temp_file = dest_file.with_name(f".tmp_{dest_file.name}")
-                if dpi:
-                    cleaned_img.save(temp_file, format=fmt, dpi=dpi)
-                else:
-                    cleaned_img.save(temp_file, format=fmt)
-                os.replace(temp_file, dest_file)
-            else:
-                if dpi:
-                    cleaned_img.save(dest_file, format=fmt, dpi=dpi)
-                else:
-                    cleaned_img.save(dest_file, format=fmt)
+                atomic_replace(temp_file, dest_file)
+                cleaned_files.append(str(dest_file))
 
-            cleaned_files.append(str(dest_file))
+                if progress_callback:
+                    progress_callback(num, total, file_path.name)
 
-            if progress_callback:
-                progress_callback(num, total, file_path.name)
-
-        return cleaned_files
+            return cleaned_files

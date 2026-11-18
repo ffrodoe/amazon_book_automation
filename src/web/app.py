@@ -1,11 +1,13 @@
+import mimetypes
 import os
 import sys
 import subprocess
 from pathlib import Path
 from typing import List, Optional
+from urllib.parse import quote
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -29,6 +31,7 @@ from src.core.image_cleaner import ImageCleaner
 from src.core.border_remover import BorderRemover
 from src.core.aplus_builder import APlusBuilder
 from src.core.image_upscaler import ImageUpscaler
+from src.core.file_utils import lock_directories, read_file_bytes_safe
 
 app = FastAPI(title="Amazon KDP Coloring Book Studio", version="1.0.0")
 
@@ -225,16 +228,25 @@ def scan_directory(
 
 @app.get("/api/image")
 def get_image(path: str = Query(..., description="Absolute path to image")):
-    """Serves an image file for UI thumbnail preview with caching disabled."""
+    """
+    Serves an image file for UI thumbnail preview with caching disabled.
+    Reads file bytes under a per-path lock and closes the OS file handle immediately
+    so Windows never holds a sharing lock while upscaling/whitening replaces files in-place.
+    """
     img_path = Path(path)
     if not img_path.exists() or not img_path.is_file():
         raise HTTPException(status_code=404, detail="Image file not found")
+    try:
+        data = read_file_bytes_safe(img_path)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Image file not found")
+    media_type = mimetypes.guess_type(str(img_path))[0] or "application/octet-stream"
     headers = {
         "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
         "Pragma": "no-cache",
         "Expires": "0"
     }
-    return FileResponse(str(img_path), headers=headers)
+    return Response(content=data, media_type=media_type, headers=headers)
 
 
 @app.post("/api/build")
@@ -250,40 +262,41 @@ def build_pdf(req: BuildRequest):
     book_format = parse_book_format(req.format)
 
     try:
-        plan = ImageProcessor.build_book_plan(
-            directory=str(target_path),
-            book_format=book_format,
-            intro_count=req.intro_count
-        )
+        with lock_directories(target_path):
+            plan = ImageProcessor.build_book_plan(
+                directory=str(target_path),
+                book_format=book_format,
+                intro_count=req.intro_count
+            )
 
-        output_dir = target_path
-        output_dir.mkdir(parents=True, exist_ok=True)
+            output_dir = target_path
+            output_dir.mkdir(parents=True, exist_ok=True)
 
-        if req.custom_output_name:
-            out_name = req.custom_output_name
-            if not out_name.lower().endswith(".pdf"):
-                out_name += ".pdf"
-            output_file = output_dir / out_name
-        else:
-            output_file = output_dir / f"{target_path.name}_{book_format.value}_interior.pdf"
+            if req.custom_output_name:
+                out_name = req.custom_output_name
+                if not out_name.lower().endswith(".pdf"):
+                    out_name += ".pdf"
+                output_file = output_dir / out_name
+            else:
+                output_file = output_dir / f"{target_path.name}_{book_format.value}_interior.pdf"
 
-        generated_pdf = PDFBuilder.build_pdf(
-            plan=plan,
-            output_path=str(output_file)
-        )
+            generated_pdf = PDFBuilder.build_pdf(
+                plan=plan,
+                output_path=str(output_file)
+            )
 
-        size_bytes = os.path.getsize(generated_pdf)
-        size_mb = size_bytes / (1024 * 1024)
+            size_bytes = os.path.getsize(generated_pdf)
+            size_mb = size_bytes / (1024 * 1024)
 
-        return {
-            "success": True,
-            "output_path": str(generated_pdf),
-            "output_dir": str(Path(generated_pdf).parent),
-            "file_name": Path(generated_pdf).name,
-            "size_mb": round(size_mb, 2),
-            "total_pages": plan.total_pages,
-            "format": book_format.value
-        }
+            return {
+                "success": True,
+                "output_path": str(generated_pdf),
+                "output_dir": str(Path(generated_pdf).parent),
+                "file_name": Path(generated_pdf).name,
+                "size_mb": round(size_mb, 2),
+                "total_pages": plan.total_pages,
+                "format": book_format.value
+            }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -293,12 +306,14 @@ def get_brand_logo():
     """Serves brand logo image for the UI preview."""
     if not DEFAULT_LOGO_PATH.exists():
         raise HTTPException(status_code=404, detail="Brand logo file not found")
+    data = read_file_bytes_safe(DEFAULT_LOGO_PATH)
+    media_type = mimetypes.guess_type(str(DEFAULT_LOGO_PATH))[0] or "image/png"
     headers = {
         "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
         "Pragma": "no-cache",
         "Expires": "0"
     }
-    return FileResponse(str(DEFAULT_LOGO_PATH), headers=headers)
+    return Response(content=data, media_type=media_type, headers=headers)
 
 
 @app.get("/api/cover-details")
@@ -360,7 +375,7 @@ def get_cover_details(
                 {
                     "path": str(f.resolve()),
                     "name": f.name,
-                    "preview_url": f"/api/image?path={str(f.resolve())}"
+                    "preview_url": f"/api/image?path={quote(str(f.resolve()), safe='')}&t={int(os.path.getmtime(f)) if f.exists() else 0}"
                 }
                 for f in interior_files
             ]
@@ -424,28 +439,29 @@ def build_cover(req: BuildCoverRequest):
         output_file = output_dir / f"{target_path.name}_{book_format.value}_cover.pdf"
 
     try:
-        generated_pdf = CoverBuilder.build_cover_pdf(
-            book_format=book_format,
-            front_cover_path=front_p,
-            back_cover_path=back_p,
-            interior_image_paths=thumb_paths,
-            spine_width_mm=req.spine_width_mm,
-            spine_color_hex=req.spine_color,
-            output_path=str(output_file)
-        )
+        with lock_directories(target_path):
+            generated_pdf = CoverBuilder.build_cover_pdf(
+                book_format=book_format,
+                front_cover_path=front_p,
+                back_cover_path=back_p,
+                interior_image_paths=thumb_paths,
+                spine_width_mm=req.spine_width_mm,
+                spine_color_hex=req.spine_color,
+                output_path=str(output_file)
+            )
 
-        size_bytes = os.path.getsize(generated_pdf)
-        size_mb = size_bytes / (1024 * 1024)
+            size_bytes = os.path.getsize(generated_pdf)
+            size_mb = size_bytes / (1024 * 1024)
 
-        return {
-            "success": True,
-            "output_path": str(generated_pdf),
-            "output_dir": str(Path(generated_pdf).parent),
-            "file_name": Path(generated_pdf).name,
-            "size_mb": round(size_mb, 2),
-            "spine_width_mm": req.spine_width_mm,
-            "format": book_format.value
-        }
+            return {
+                "success": True,
+                "output_path": str(generated_pdf),
+                "output_dir": str(Path(generated_pdf).parent),
+                "file_name": Path(generated_pdf).name,
+                "size_mb": round(size_mb, 2),
+                "spine_width_mm": req.spine_width_mm,
+                "format": book_format.value
+            }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

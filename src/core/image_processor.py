@@ -6,6 +6,7 @@ from typing import List, Optional
 from PIL import Image
 
 from src.config import BookFormat, FORMAT_SPECS, DEFAULT_INTRO_COUNT
+from src.core.file_utils import is_hidden_or_temp_file
 
 
 def natural_sort_key(s: str) -> List:
@@ -48,7 +49,11 @@ class ImageProcessor:
 
         files = [
             f for f in target_dir.iterdir()
-            if f.is_file() and f.suffix.lower() in cls.SUPPORTED_EXTENSIONS
+            if (
+                f.is_file()
+                and not is_hidden_or_temp_file(f)
+                and f.suffix.lower() in cls.SUPPORTED_EXTENSIONS
+            )
         ]
 
         if not include_cover:
@@ -80,7 +85,11 @@ class ImageProcessor:
 
         for d in search_dirs:
             for f in d.iterdir():
-                if not f.is_file() or f.suffix.lower() not in cls.SUPPORTED_EXTENSIONS:
+                if (
+                    not f.is_file()
+                    or is_hidden_or_temp_file(f)
+                    or f.suffix.lower() not in cls.SUPPORTED_EXTENSIONS
+                ):
                     continue
                 stem = f.stem.lower()
                 if stem == "cover_front" or stem == "front":
