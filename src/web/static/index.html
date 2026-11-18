@@ -344,6 +344,27 @@
             </div>
           </div>
 
+          <!-- PDF Framing Option -->
+          <div class="tool-card" style="padding: 14px 16px; margin-bottom: 14px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+              <label for="noFrameCount" class="form-label" style="margin-bottom: 0;">
+                <span>Не оборачивать в рамку первые картинки</span>
+              </label>
+              <input
+                type="number"
+                id="noFrameCount"
+                min="0"
+                max="100"
+                value="4"
+                class="num-input-compact"
+                style="width: 56px; padding: 5px 6px; font-size: 13px; font-weight: 600;"
+              >
+            </div>
+            <p class="input-hint" style="margin-top: 6px; margin-bottom: 0;">
+              Считаются только страницы с иллюстрациями (пустые защитные листы не учитываются). <code>0</code> — все картинки в рамке.
+            </p>
+          </div>
+
           <!-- Build Button -->
           <button id="btnBuild" class="btn btn-primary btn-large btn-full">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
@@ -894,7 +915,7 @@
 
   </div>
 
-  <script src="app.js?v=2.4"></script>
+  <script src="app.js?v=2.5"></script>
 </body>
 </html>
 

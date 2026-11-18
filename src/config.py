@@ -68,6 +68,9 @@ FORMAT_SPECS = {
 # Final page is blank (ensuring even page count for KDP)
 DEFAULT_INTRO_COUNT = 3
 
+# Default number of initial non-blank images rendered without a double frame in Interior PDF
+DEFAULT_NO_FRAME_COUNT = 4
+
 # Margin and Gutter specifications (in millimeters)
 # Amazon KDP Safe Zone: Gutter is on spine side, default 15mm on outer/top/bottom
 MARGIN_DEFAULT_MM = 15.0  # Top, bottom, outside cut margin

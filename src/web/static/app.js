@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Interior Elements
   const introSlider = document.getElementById('introCount');
   const introVal = document.getElementById('introCountVal');
+  const noFrameCountInput = document.getElementById('noFrameCount');
   const btnBuild = document.getElementById('btnBuild');
   const btnBuildText = document.getElementById('btnBuildText');
   const statImagesCount = document.getElementById('statImagesCount');
@@ -534,13 +535,16 @@ document.addEventListener('DOMContentLoaded', () => {
     btnBuildText.textContent = 'Сборка Interior PDF...';
 
     try {
+      const parsedNoFrame = noFrameCountInput ? parseInt(noFrameCountInput.value, 10) : 4;
+      const noFrameCount = Number.isNaN(parsedNoFrame) ? 4 : Math.max(0, parsedNoFrame);
       const res = await fetch('/api/build', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           folder_path: folder,
           format: getSelectedFormat(),
-          intro_count: parseInt(introSlider.value, 10)
+          intro_count: parseInt(introSlider.value, 10),
+          no_frame_count: noFrameCount
         })
       });
 

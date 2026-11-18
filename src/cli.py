@@ -6,7 +6,13 @@ from pathlib import Path
 # Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import BookFormat, FORMAT_SPECS, DEFAULT_INTRO_COUNT, parse_book_format
+from src.config import (
+    BookFormat,
+    FORMAT_SPECS,
+    DEFAULT_INTRO_COUNT,
+    DEFAULT_NO_FRAME_COUNT,
+    parse_book_format
+)
 from src.core.image_processor import ImageProcessor
 from src.core.pdf_builder import PDFBuilder
 from src.core.image_cleaner import ImageCleaner
@@ -39,6 +45,12 @@ Examples:
         type=int,
         default=DEFAULT_INTRO_COUNT,
         help=f"Number of initial consecutive images without blanks (default: {DEFAULT_INTRO_COUNT})"
+    )
+    parser.add_argument(
+        "--no-frame-count",
+        type=int,
+        default=DEFAULT_NO_FRAME_COUNT,
+        help=f"Number of initial non-blank images rendered without a double frame (default: {DEFAULT_NO_FRAME_COUNT})"
     )
     parser.add_argument(
         "-o", "--output",
@@ -111,6 +123,7 @@ Examples:
         out_path = PDFBuilder.build_pdf(
             plan=plan,
             output_path=args.output,
+            no_frame_count=max(0, args.no_frame_count),
             progress_callback=progress
         )
         print()

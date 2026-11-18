@@ -20,6 +20,7 @@ from src.config import (
     BookFormat,
     FORMAT_SPECS,
     DEFAULT_INTRO_COUNT,
+    DEFAULT_NO_FRAME_COUNT,
     DEFAULT_BRIGHTNESS_OFFSET,
     DEFAULT_LOGO_PATH,
     parse_book_format
@@ -60,6 +61,7 @@ class BuildRequest(BaseModel):
     folder_path: str
     format: str = "a4"
     intro_count: int = DEFAULT_INTRO_COUNT
+    no_frame_count: int = DEFAULT_NO_FRAME_COUNT
     custom_output_name: Optional[str] = None
 
 
@@ -282,7 +284,8 @@ def build_pdf(req: BuildRequest):
 
             generated_pdf = PDFBuilder.build_pdf(
                 plan=plan,
-                output_path=str(output_file)
+                output_path=str(output_file),
+                no_frame_count=max(0, req.no_frame_count)
             )
 
             size_bytes = os.path.getsize(generated_pdf)

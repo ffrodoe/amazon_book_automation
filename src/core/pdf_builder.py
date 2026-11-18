@@ -6,6 +6,7 @@ import pymupdf as fitz
 from src.config import (
     BookFormat,
     FORMAT_SPECS,
+    DEFAULT_NO_FRAME_COUNT,
     MARGIN_DEFAULT_MM,
     MARGIN_GUTTER_MM,
     FRAME_LINE_WIDTH_PT,
@@ -20,6 +21,7 @@ class PDFBuilder:
     def build_pdf(
         plan: BookPlan,
         output_path: Optional[str] = None,
+        no_frame_count: int = DEFAULT_NO_FRAME_COUNT,
         progress_callback: Optional[Callable[[int, int, str], None]] = None
     ) -> str:
         """
@@ -48,6 +50,8 @@ class PDFBuilder:
         doc = fitz.open()
 
         total = len(plan.pages)
+        unframed_limit = max(0, int(no_frame_count))
+        image_index = 0
         for idx, page_plan in enumerate(plan.pages):
             page_num = idx + 1
             # Create page with exact KDP dimensions
@@ -58,6 +62,7 @@ class PDFBuilder:
                 pdf_page.draw_rect(page_full_rect, color=(1, 1, 1), fill=(1, 1, 1))
                 msg = f"Page {page_num}/{total}: Blank Page"
             else:
+                image_index += 1
                 # Calculate margins with KDP spine (gutter) positioning:
                 # Spine is on LEFT for all illustration pages (odd pages / Recto) and page 1.
                 # Spine is on RIGHT only for page 2 (copyright / Verso).
@@ -78,8 +83,8 @@ class PDFBuilder:
                     height_pt - bottom_m
                 )
 
-                if page_num in (1, 2, 3):
-                    # Pages 1,2 & 3: margins applied without frame
+                if image_index <= unframed_limit:
+                    # First N non-blank images: margins applied without double frame
                     pdf_page.insert_image(
                         outer_rect,
                         filename=page_plan.image_path,
@@ -87,7 +92,7 @@ class PDFBuilder:
                     )
                     msg = f"Page {page_num}/{total}: {page_plan.image_name} (Margins only)"
                 else:
-                    # Page 3 and subsequent coloring pages:
+                    # Subsequent coloring pages:
                     # Draw double frame: two identical thin lines (1.5 pt) with 3mm gap
                     inner_rect = fitz.Rect(
                         outer_rect.x0 + frame_gap_pt,
